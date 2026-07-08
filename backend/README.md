@@ -33,8 +33,10 @@ uvicorn main:app --reload --port 8000
 |---|---|---|---|
 | POST | `/webhook/line` | LINEからのメッセージを受信し自動返信 | LINE署名検証 |
 | GET/PUT | `/api/persona` | 愛美さんの人格・システムプロンプトの取得/更新 | `Authorization: Bearer <ADMIN_API_TOKEN>` |
-| POST/GET | `/api/healy-data` | ヒーリーデータの受信/一覧 | 同上 |
+| POST/GET | `/api/healy-data` | ヒーリーデータ（汎用）の受信/一覧 | 同上 |
+| POST | `/api/healy-data/coaching-report` | Healyコーチング分析レポートの受信（`client_initials`はイニシャルで保存すること） | 同上 |
 | POST/GET | `/api/external-gpt` | 他GPTからの回答の受信/一覧 | 同上 |
+| POST | `/api/public-chat` | フロントエンド用の公開チャット窓口（1日上限＋IPごとの簡易レート制限で保護） | なし |
 
 ## LINEとの接続手順
 

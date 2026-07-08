@@ -21,6 +21,22 @@ class HealyEvent(BaseModel):
     data: dict[str, Any]
 
 
+class HealyCoachingItem(BaseModel):
+    category: str  # 例: "焦点を特定する", "職業", "個人的責任"
+    match_percent: float
+    session_count: int | None = None
+    code: str | None = None  # Healyアプリ内の内部コード（例: "D 1E12"）
+    target_state: str  # 「目標とする状態」のアファメーション文
+
+
+class HealyCoachingReport(BaseModel):
+    # 個人情報保護のため、フルネームではなくイニシャルで保存する運用とする
+    client_initials: str
+    report_datetime: str
+    main_focus: str | None = None  # 「主患部」のアファメーション文
+    items: list[HealyCoachingItem] = []
+
+
 class ExternalGptEvent(BaseModel):
     source: str  # 例: 相手のGPT/サービス名
     message: str
@@ -33,6 +49,17 @@ def receive_healy_data(event: HealyEvent):
         "received_at": datetime.now(timezone.utc).isoformat(),
         "source": event.source,
         "data": event.data,
+    }
+    append_healy_event(record)
+    return {"status": "stored"}
+
+
+@router.post("/api/healy-data/coaching-report")
+def receive_coaching_report(report: HealyCoachingReport):
+    record = {
+        "received_at": datetime.now(timezone.utc).isoformat(),
+        "source": "healy_coaching_report",
+        "data": report.model_dump(),
     }
     append_healy_event(record)
     return {"status": "stored"}

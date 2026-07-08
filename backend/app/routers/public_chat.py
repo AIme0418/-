@@ -6,11 +6,11 @@
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from ..llm_clients import generate_reply
-from ..rate_limit import enforce_daily_limit
+from ..rate_limit import enforce_daily_limit, enforce_per_ip_limit
 from ..storage import load_persona
 
 logger = logging.getLogger("public_chat")
@@ -22,7 +22,9 @@ class PublicChatRequest(BaseModel):
 
 
 @router.post("/api/public-chat")
-async def public_chat(req: PublicChatRequest):
+async def public_chat(req: PublicChatRequest, request: Request):
+    client_ip = request.client.host if request.client else "unknown"
+    enforce_per_ip_limit(client_ip)
     enforce_daily_limit()
     persona = load_persona()
     try:
