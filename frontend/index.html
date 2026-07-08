@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>愛美</title>
+<style>
+  :root {
+    --bg: #fdf6f0;
+    --card: #ffffff;
+    --accent: #d98c9b;
+    --accent-dark: #b96e7e;
+    --text: #3a2e2e;
+    --muted: #8a7b7b;
+    --bubble-user: #d98c9b;
+    --bubble-ai: #f3e6e0;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+  }
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    max-width: 480px;
+    margin: 0 auto;
+    background: var(--card);
+  }
+  header {
+    padding: 14px 16px;
+    background: var(--accent);
+    color: white;
+    text-align: center;
+    font-size: 1.1rem;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  nav {
+    display: flex;
+    border-bottom: 1px solid #eee;
+    flex-shrink: 0;
+  }
+  nav button {
+    flex: 1;
+    padding: 10px;
+    background: none;
+    border: none;
+    font-size: 0.9rem;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+  }
+  nav button.active {
+    color: var(--accent-dark);
+    border-bottom-color: var(--accent);
+    font-weight: 600;
+  }
+  .view { display: none; flex: 1; min-height: 0; flex-direction: column; }
+  .view.active { display: flex; }
+
+  /* チャット */
+  #messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .bubble {
+    max-width: 78%;
+    padding: 10px 14px;
+    border-radius: 16px;
+    line-height: 1.5;
+    font-size: 0.95rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .bubble.user {
+    align-self: flex-end;
+    background: var(--bubble-user);
+    color: white;
+    border-bottom-right-radius: 4px;
+  }
+  .bubble.ai {
+    align-self: flex-start;
+    background: var(--bubble-ai);
+    color: var(--text);
+    border-bottom-left-radius: 4px;
+  }
+  .bubble.system {
+    align-self: center;
+    background: none;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+  #chat-form {
+    display: flex;
+    gap: 8px;
+    padding: 10px;
+    border-top: 1px solid #eee;
+    flex-shrink: 0;
+  }
+  #chat-input {
+    flex: 1;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    padding: 10px 16px;
+    font-size: 0.95rem;
+    resize: none;
+  }
+  #chat-form button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 0 18px;
+    font-size: 0.95rem;
+  }
+  #chat-form button:disabled { opacity: 0.5; }
+
+  /* 共通フォーム */
+  .panel { padding: 16px; overflow-y: auto; }
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .field input, .field textarea {
+    width: 100%;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 0.9rem;
+    font-family: inherit;
+  }
+  .field textarea { min-height: 120px; resize: vertical; }
+  .btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 0.9rem;
+    margin-right: 8px;
+  }
+  .btn.secondary {
+    background: none;
+    color: var(--accent-dark);
+    border: 1px solid var(--accent);
+  }
+  .note {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-top: 10px;
+    line-height: 1.5;
+  }
+  .status { font-size: 0.82rem; margin-top: 8px; min-height: 1.2em; }
+  .status.error { color: #c0392b; }
+  .status.ok { color: #2c7a4b; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>愛美</header>
+  <nav>
+    <button class="tab-btn active" data-view="chat">チャット</button>
+    <button class="tab-btn" data-view="profile">プロフィール</button>
+    <button class="tab-btn" data-view="settings">設定</button>
+  </nav>
+
+  <div id="view-chat" class="view active">
+    <div id="messages"></div>
+    <form id="chat-form">
+      <textarea id="chat-input" rows="1" placeholder="メッセージを入力..."></textarea>
+      <button type="submit" id="send-btn">送信</button>
+    </form>
+  </div>
+
+  <div id="view-profile" class="view">
+    <div class="panel">
+      <div class="field">
+        <label>管理者トークン（persona編集に必要。バックエンドの ADMIN_API_TOKEN と同じ値）</label>
+        <input type="password" id="admin-token" placeholder="トークンを入力">
+      </div>
+      <div class="field">
+        <label>名前</label>
+        <input type="text" id="persona-name" placeholder="愛美">
+      </div>
+      <div class="field">
+        <label>システムプロンプト（性格・話し方の指示）</label>
+        <textarea id="persona-prompt"></textarea>
+      </div>
+      <button class="btn secondary" id="load-persona">読み込む</button>
+      <button class="btn" id="save-persona">保存する</button>
+      <div class="status" id="profile-status"></div>
+      <p class="note">
+        ここで入力したトークンはこの端末のブラウザ内にのみ保存されます。
+        他の人とこのページのURLを共有しても、トークンを知らない限りプロフィールは書き換えられません。
+      </p>
+    </div>
+  </div>
+
+  <div id="view-settings" class="view">
+    <div class="panel">
+      <div class="field">
+        <label>バックエンドURL（例: https://healy-backend.onrender.com）</label>
+        <input type="text" id="backend-url" placeholder="https://...">
+      </div>
+      <button class="btn" id="save-backend-url">保存する</button>
+      <div class="status" id="settings-status"></div>
+      <p class="note">
+        チャットとプロフィールは、ここで設定したバックエンドURLに接続します。
+        ローカルで試す場合は http://localhost:8000 のように入力してください。
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  const LS_BACKEND_URL = "healy_backend_url";
+  const LS_ADMIN_TOKEN = "healy_admin_token";
+
+  function getBackendUrl() {
+    return (localStorage.getItem(LS_BACKEND_URL) || "").replace(/\/+$/, "");
+  }
+
+  // --- タブ切り替え ---
+  const tabButtons = document.querySelectorAll(".tab-btn");
+  const views = {
+    chat: document.getElementById("view-chat"),
+    profile: document.getElementById("view-profile"),
+    settings: document.getElementById("view-settings"),
+  };
+  tabButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      tabButtons.forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      Object.values(views).forEach((v) => v.classList.remove("active"));
+      views[btn.dataset.view].classList.add("active");
+      if (btn.dataset.view === "settings") loadSettingsView();
+      if (btn.dataset.view === "profile") loadProfileView();
+    });
+  });
+
+  // --- チャット ---
+  const messagesEl = document.getElementById("messages");
+  const chatForm = document.getElementById("chat-form");
+  const chatInput = document.getElementById("chat-input");
+  const sendBtn = document.getElementById("send-btn");
+
+  function addBubble(text, cls) {
+    const div = document.createElement("div");
+    div.className = "bubble " + cls;
+    div.textContent = text;
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return div;
+  }
+
+  chatForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const text = chatInput.value.trim();
+    if (!text) return;
+
+    const backendUrl = getBackendUrl();
+    if (!backendUrl) {
+      addBubble("先に「設定」タブでバックエンドURLを入力してください。", "system");
+      return;
+    }
+
+    addBubble(text, "user");
+    chatInput.value = "";
+    sendBtn.disabled = true;
+    const thinking = addBubble("...", "ai");
+
+    try {
+      const res = await fetch(backendUrl + "/api/public-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text }),
+      });
+      if (res.status === 429) {
+        thinking.textContent = "本日の対応件数の上限に達しました。また明日お話しましょうね。";
+      } else if (!res.ok) {
+        thinking.textContent = "うまく応答できませんでした（サーバーエラー）。少し時間をおいて試してください。";
+      } else {
+        const data = await res.json();
+        thinking.textContent = data.reply;
+      }
+    } catch (err) {
+      thinking.textContent = "接続できませんでした。設定タブのURLを確認してください。";
+    } finally {
+      sendBtn.disabled = false;
+    }
+  });
+
+  chatInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      chatForm.requestSubmit();
+    }
+  });
+
+  // --- 設定タブ ---
+  const backendUrlInput = document.getElementById("backend-url");
+  const settingsStatus = document.getElementById("settings-status");
+
+  function loadSettingsView() {
+    backendUrlInput.value = localStorage.getItem(LS_BACKEND_URL) || "";
+  }
+
+  document.getElementById("save-backend-url").addEventListener("click", () => {
+    const url = backendUrlInput.value.trim().replace(/\/+$/, "");
+    localStorage.setItem(LS_BACKEND_URL, url);
+    settingsStatus.textContent = "保存しました。";
+    settingsStatus.className = "status ok";
+  });
+
+  // --- プロフィールタブ ---
+  const adminTokenInput = document.getElementById("admin-token");
+  const personaNameInput = document.getElementById("persona-name");
+  const personaPromptInput = document.getElementById("persona-prompt");
+  const profileStatus = document.getElementById("profile-status");
+
+  function loadProfileView() {
+    adminTokenInput.value = localStorage.getItem(LS_ADMIN_TOKEN) || "";
+  }
+
+  document.getElementById("load-persona").addEventListener("click", async () => {
+    const backendUrl = getBackendUrl();
+    const token = adminTokenInput.value.trim();
+    if (!backendUrl) {
+      profileStatus.textContent = "先に設定タブでバックエンドURLを入力してください。";
+      profileStatus.className = "status error";
+      return;
+    }
+    try {
+      const res = await fetch(backendUrl + "/api/persona", {
+        headers: { Authorization: "Bearer " + token },
+      });
+      if (res.status === 401) {
+        profileStatus.textContent = "トークンが正しくありません。";
+        profileStatus.className = "status error";
+        return;
+      }
+      const data = await res.json();
+      personaNameInput.value = data.name || "";
+      personaPromptInput.value = data.system_prompt || "";
+      localStorage.setItem(LS_ADMIN_TOKEN, token);
+      profileStatus.textContent = "読み込みました。";
+      profileStatus.className = "status ok";
+    } catch (err) {
+      profileStatus.textContent = "接続に失敗しました。";
+      profileStatus.className = "status error";
+    }
+  });
+
+  document.getElementById("save-persona").addEventListener("click", async () => {
+    const backendUrl = getBackendUrl();
+    const token = adminTokenInput.value.trim();
+    if (!backendUrl) {
+      profileStatus.textContent = "先に設定タブでバックエンドURLを入力してください。";
+      profileStatus.className = "status error";
+      return;
+    }
+    try {
+      const res = await fetch(backendUrl + "/api/persona", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + token,
+        },
+        body: JSON.stringify({
+          name: personaNameInput.value,
+          system_prompt: personaPromptInput.value,
+        }),
+      });
+      if (res.status === 401) {
+        profileStatus.textContent = "トークンが正しくありません。";
+        profileStatus.className = "status error";
+        return;
+      }
+      if (!res.ok) {
+        profileStatus.textContent = "保存に失敗しました。";
+        profileStatus.className = "status error";
+        return;
+      }
+      localStorage.setItem(LS_ADMIN_TOKEN, token);
+      profileStatus.textContent = "保存しました。";
+      profileStatus.className = "status ok";
+    } catch (err) {
+      profileStatus.textContent = "接続に失敗しました。";
+      profileStatus.className = "status error";
+    }
+  });
+
+  // 初期表示
+  loadSettingsView();
+  addBubble("愛美です。今日はどんなことをお話ししましょうか。", "ai");
+})();
+</script>
+</body>
+</html>

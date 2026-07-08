@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: healy-backend
+    env: docker
+    plan: free
+    envVars:
+      - key: LINE_CHANNEL_SECRET
+        sync: false
+      - key: LINE_CHANNEL_ACCESS_TOKEN
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: DEFAULT_MODEL_PROVIDER
+        value: gemini
+      - key: ADMIN_API_TOKEN
+        sync: false
+      - key: DAILY_MESSAGE_LIMIT
+        value: "300"
