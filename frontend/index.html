@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>愛美</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<meta name="theme-color" content="#d98c9b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="愛美">
 <style>
   :root {
     --bg: #fdf6f0;
@@ -23,13 +29,48 @@
     font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
   }
   #app {
-    display: flex;
+    display: none;
     flex-direction: column;
     height: 100dvh;
     max-width: 480px;
     margin: 0 auto;
     background: var(--card);
   }
+  #app.visible { display: flex; }
+
+  #lock-screen {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100dvh;
+    max-width: 480px;
+    margin: 0 auto;
+    background: var(--bg);
+  }
+  #lock-screen.hidden { display: none; }
+  .lock-box {
+    width: 100%;
+    max-width: 300px;
+    padding: 32px 24px;
+    text-align: center;
+  }
+  .lock-emoji { font-size: 2.5rem; margin-bottom: 8px; }
+  .lock-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--accent-dark);
+    margin-bottom: 20px;
+  }
+  .lock-box input {
+    width: 100%;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 1rem;
+    text-align: center;
+    margin-bottom: 12px;
+  }
+  .lock-box .btn { width: 100%; padding: 12px; }
   header {
     padding: 14px 16px;
     background: var(--accent);
@@ -166,6 +207,15 @@
 </style>
 </head>
 <body>
+<div id="lock-screen">
+  <div class="lock-box">
+    <div class="lock-emoji">🔒</div>
+    <div class="lock-title">愛美</div>
+    <input type="password" id="lock-password" placeholder="パスワードを入力">
+    <button class="btn" id="lock-submit">開く</button>
+    <div class="status error" id="lock-error"></div>
+  </div>
+</div>
 <div id="app">
   <header>愛美</header>
   <nav>
@@ -228,6 +278,41 @@
 
   const LS_BACKEND_URL = "healy_backend_url";
   const LS_ADMIN_TOKEN = "healy_admin_token";
+  const LS_UNLOCKED = "healy_unlocked";
+  const LOCK_PASSWORD = "healy2026";
+
+  // --- ロック画面 ---
+  const lockScreen = document.getElementById("lock-screen");
+  const appEl = document.getElementById("app");
+  const lockPasswordInput = document.getElementById("lock-password");
+  const lockError = document.getElementById("lock-error");
+
+  function unlock() {
+    lockScreen.classList.add("hidden");
+    appEl.classList.add("visible");
+    localStorage.setItem(LS_UNLOCKED, "1");
+  }
+
+  if (localStorage.getItem(LS_UNLOCKED) === "1") {
+    unlock();
+  } else {
+    lockPasswordInput.focus();
+  }
+
+  document.getElementById("lock-submit").addEventListener("click", () => {
+    if (lockPasswordInput.value === LOCK_PASSWORD) {
+      unlock();
+    } else {
+      lockError.textContent = "パスワードが違います。";
+    }
+  });
+  lockPasswordInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") document.getElementById("lock-submit").click();
+  });
+
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  }
 
   function getBackendUrl() {
     return (localStorage.getItem(LS_BACKEND_URL) || "").replace(/\/+$/, "");
