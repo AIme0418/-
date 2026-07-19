@@ -5,11 +5,10 @@ from typing import Any
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+from .. import storage
 from ..auth import require_admin_token
 from ..llm_clients import generate_reply
 from ..storage import (
-    EXTERNAL_GPT_LOG_FILE,
-    HEALY_LOG_FILE,
     append_external_gpt_event,
     append_healy_event,
     read_jsonl,
@@ -95,7 +94,7 @@ async def receive_coaching_report(report: HealyCoachingReport):
 
 @router.get("/api/healy-data")
 def list_healy_data(limit: int = 50):
-    return read_jsonl(HEALY_LOG_FILE, limit=limit)
+    return read_jsonl(storage.HEALY_LOG_FILE, limit=limit)
 
 
 @router.post("/api/external-gpt")
@@ -112,4 +111,4 @@ def receive_external_gpt(event: ExternalGptEvent):
 
 @router.get("/api/external-gpt")
 def list_external_gpt(limit: int = 50):
-    return read_jsonl(EXTERNAL_GPT_LOG_FILE, limit=limit)
+    return read_jsonl(storage.EXTERNAL_GPT_LOG_FILE, limit=limit)

@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import dev_chat, healy, line_webhook, persona, public_chat
+from app.routers import dev_chat, healy, line_webhook, persona, public_chat, security
 
 logging.basicConfig(level=logging.INFO)
 
@@ -22,6 +22,7 @@ app.include_router(healy.router)
 app.include_router(persona.router)
 app.include_router(dev_chat.router)
 app.include_router(public_chat.router)
+app.include_router(security.router)
 
 
 @app.get("/")

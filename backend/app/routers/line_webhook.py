@@ -9,7 +9,7 @@ from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Request
 from ..config import settings
 from ..llm_clients import generate_reply
 from ..rate_limit import enforce_daily_limit
-from ..storage import build_system_prompt_with_context
+from ..storage import build_system_prompt_with_context, log_security_event
 
 logger = logging.getLogger("line_webhook")
 router = APIRouter()
@@ -75,6 +75,7 @@ async def line_webhook(
 ):
     body = await request.body()
     if not _verify_signature(body, x_line_signature):
+        log_security_event("line_signature_invalid")
         raise HTTPException(status_code=403, detail="invalid signature")
 
     payload = await request.json()

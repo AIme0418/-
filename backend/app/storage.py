@@ -1,5 +1,5 @@
 import json
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 from threading import Lock
 
@@ -11,6 +11,7 @@ HEALY_LOG_FILE = DATA_DIR / "healy_events.jsonl"
 EXTERNAL_GPT_LOG_FILE = DATA_DIR / "external_gpt_events.jsonl"
 USAGE_FILE = DATA_DIR / "usage.json"
 ACTIVE_HEALY_SUMMARY_FILE = DATA_DIR / "active_healy_summary.json"
+SECURITY_LOG_FILE = DATA_DIR / "security_events.jsonl"
 
 _lock = Lock()
 
@@ -60,6 +61,18 @@ def append_healy_event(record: dict) -> None:
 
 def append_external_gpt_event(record: dict) -> None:
     _append_jsonl(EXTERNAL_GPT_LOG_FILE, record)
+
+
+def log_security_event(event_type: str, detail: str = "") -> None:
+    """不正アクセスの試み・制限超過などを記録する（管理APIから確認できる）。"""
+    _append_jsonl(
+        SECURITY_LOG_FILE,
+        {
+            "at": datetime.now(timezone.utc).isoformat(),
+            "type": event_type,
+            "detail": detail,
+        },
+    )
 
 
 def read_jsonl(path: Path, limit: int = 50) -> list[dict]:

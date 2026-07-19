@@ -5,7 +5,7 @@ from threading import Lock
 from fastapi import HTTPException
 
 from .config import settings
-from .storage import increment_and_check_daily_usage
+from .storage import increment_and_check_daily_usage, log_security_event
 
 
 def enforce_daily_limit() -> None:
@@ -33,6 +33,7 @@ def enforce_per_ip_limit(client_ip: str) -> None:
         while timestamps and now - timestamps[0] > PER_IP_WINDOW_SECONDS:
             timestamps.popleft()
         if len(timestamps) >= PER_IP_MAX_REQUESTS:
+            log_security_event("per_ip_limit_exceeded", detail=client_ip)
             raise HTTPException(
                 status_code=429,
                 detail="アクセスが集中しています。少し時間をおいてお試しください。",
