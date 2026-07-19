@@ -40,3 +40,38 @@ def test_healy_and_external_gpt_event_roundtrip(tmp_path, monkeypatch):
     assert len(events) == 1
     assert events[0]["source"] == "healy_device"
     assert events[0]["data"]["freq"] == 1234
+
+
+def test_active_healy_summary_save_and_load(tmp_path, monkeypatch):
+    monkeypatch.setattr(storage, "ACTIVE_HEALY_SUMMARY_FILE", tmp_path / "summary.json")
+
+    assert storage.load_active_healy_summary() is None
+
+    storage.save_active_healy_summary("M.I.", "自己犠牲というテーマに向き合っています。")
+    summary = storage.load_active_healy_summary()
+
+    assert summary == {
+        "client_initials": "M.I.",
+        "summary": "自己犠牲というテーマに向き合っています。",
+    }
+
+
+def test_build_system_prompt_without_summary(tmp_path, monkeypatch):
+    monkeypatch.setattr(storage, "PERSONA_FILE", tmp_path / "persona.json")
+    monkeypatch.setattr(storage, "ACTIVE_HEALY_SUMMARY_FILE", tmp_path / "summary.json")
+
+    prompt = storage.build_system_prompt_with_context()
+
+    assert prompt == storage.DEFAULT_PERSONA["system_prompt"]
+
+
+def test_build_system_prompt_with_summary(tmp_path, monkeypatch):
+    monkeypatch.setattr(storage, "PERSONA_FILE", tmp_path / "persona.json")
+    monkeypatch.setattr(storage, "ACTIVE_HEALY_SUMMARY_FILE", tmp_path / "summary.json")
+    storage.save_active_healy_summary("M.I.", "自己犠牲というテーマに向き合っています。")
+
+    prompt = storage.build_system_prompt_with_context()
+
+    assert storage.DEFAULT_PERSONA["system_prompt"] in prompt
+    assert "M.I." in prompt
+    assert "自己犠牲というテーマに向き合っています。" in prompt

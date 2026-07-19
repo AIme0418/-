@@ -9,7 +9,7 @@ from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Request
 from ..config import settings
 from ..llm_clients import generate_reply
 from ..rate_limit import enforce_daily_limit
-from ..storage import load_persona
+from ..storage import build_system_prompt_with_context
 
 logger = logging.getLogger("line_webhook")
 router = APIRouter()
@@ -58,9 +58,8 @@ async def _handle_text_message(reply_token: str, user_text: str) -> None:
         )
         return
 
-    persona = load_persona()
     try:
-        reply_text = await generate_reply(user_text, persona["system_prompt"])
+        reply_text = await generate_reply(user_text, build_system_prompt_with_context())
     except Exception:
         logger.exception("LLM generation failed")
         reply_text = "ごめんなさい、少し調子が悪いみたいです。もう一度話しかけてもらえますか？"

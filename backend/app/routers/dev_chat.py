@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from ..auth import require_admin_token
 from ..llm_clients import generate_reply
-from ..storage import load_persona
+from ..storage import build_system_prompt_with_context
 
 router = APIRouter(dependencies=[Depends(require_admin_token)])
 
@@ -17,6 +17,5 @@ class ChatRequest(BaseModel):
 
 @router.post("/api/chat")
 async def dev_chat(req: ChatRequest):
-    persona = load_persona()
-    reply = await generate_reply(req.message, persona["system_prompt"], req.provider)
+    reply = await generate_reply(req.message, build_system_prompt_with_context(), req.provider)
     return {"reply": reply}

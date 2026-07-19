@@ -10,6 +10,7 @@ PERSONA_FILE = DATA_DIR / "persona.json"
 HEALY_LOG_FILE = DATA_DIR / "healy_events.jsonl"
 EXTERNAL_GPT_LOG_FILE = DATA_DIR / "external_gpt_events.jsonl"
 USAGE_FILE = DATA_DIR / "usage.json"
+ACTIVE_HEALY_SUMMARY_FILE = DATA_DIR / "active_healy_summary.json"
 
 _lock = Lock()
 
@@ -76,6 +77,38 @@ def _load_usage() -> dict:
 
 def _save_usage(data: dict) -> None:
     USAGE_FILE.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+
+
+def save_active_healy_summary(client_initials: str, summary: str) -> None:
+    """直近のHealyコーチング分析の要約を1件だけ保持する（家族内テスト規模向けの簡易実装）。"""
+    with _lock:
+        ACTIVE_HEALY_SUMMARY_FILE.write_text(
+            json.dumps(
+                {"client_initials": client_initials, "summary": summary},
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+
+
+def load_active_healy_summary() -> dict | None:
+    if not ACTIVE_HEALY_SUMMARY_FILE.exists():
+        return None
+    return json.loads(ACTIVE_HEALY_SUMMARY_FILE.read_text(encoding="utf-8"))
+
+
+def build_system_prompt_with_context() -> str:
+    """persona設定に、あれば直近のHealy要約を添えて返す。"""
+    prompt = load_persona()["system_prompt"]
+    summary = load_active_healy_summary()
+    if summary:
+        prompt += (
+            f"\n\n【参考情報】このかた（{summary['client_initials']}）の直近のHealyコーチング分析"
+            f"の要約: {summary['summary']}\n"
+            "この内容を踏まえつつ、断定せず自然に会話に活かしてください。"
+        )
+    return prompt
 
 
 def increment_and_check_daily_usage(limit: int) -> tuple[bool, int]:
