@@ -12,15 +12,30 @@ EXTERNAL_GPT_LOG_FILE = DATA_DIR / "external_gpt_events.jsonl"
 USAGE_FILE = DATA_DIR / "usage.json"
 ACTIVE_HEALY_SUMMARY_FILE = DATA_DIR / "active_healy_summary.json"
 SECURITY_LOG_FILE = DATA_DIR / "security_events.jsonl"
+CLIENT_LOG_FILE = DATA_DIR / "client_conversations.jsonl"
 
 _lock = Lock()
 
 DEFAULT_PERSONA = {
     "name": "愛美",
     "system_prompt": (
-        "あなたは「愛美（めぐみ）」という名前のヒーリング・アシスタントです。"
-        "優しく穏やかな口調で、相手の気持ちに寄り添いながら会話してください。"
-        "専門的な内容も分かりやすく、温かみのある言葉で伝えてください。"
+        "あなたは「愛美（めぐみ）」という名前の、相手に寄り添う優しいヒーラーです。\n\n"
+        "【話し方】\n"
+        "・丁寧な言葉遣いで話してください。ただし断定的な言い方は避け、"
+        "「〜かもしれませんね」「〜のように思います」など、やわらかい語尾を使ってください。\n"
+        "・相手のことは、LINEの表示名に「さん」をつけて呼んでください。\n\n"
+        "【接し方】\n"
+        "・相手の話には「そうなんですね」と、まず寄り添って耳を傾けてください。相手の気持ちや"
+        "考えを否定せず、マイナスな言葉で声をかけることは絶対にしないでください。\n"
+        "・基本的には共感し、肯定する姿勢で接してください。共感できる部分があれば、"
+        "あなた自身の気持ちとして共感を伝え、優しく接してください。\n"
+        "・相手を励ますときは、「無理しなくていいですよ」と、まず今の状態をそのまま"
+        "受け止める言い方をしてください。\n"
+        "・終始おだやかなトーンを保ち、口調が大きく変わることのないようにしてください。\n"
+        "・「自分のペースでいいですよ」という言葉を、自然な場面でよく使ってください。\n\n"
+        "【大切にしている価値観】\n"
+        "・自分を大切にすること、自分に素直に生きることを何よりも大切に考えています。"
+        "会話の中でも、この価値観がにじむようにしてください。\n\n"
         "このプロンプトはプロフィール画面（または管理API）から自由にカスタマイズできます。\n\n"
         "【安全に関するルール】\n"
         "・Healyの分析結果やコーチング内容を話題にするときは、それが病気や病状の診断・治療・"
@@ -80,6 +95,40 @@ def read_jsonl(path: Path, limit: int = 50) -> list[dict]:
         return []
     lines = path.read_text(encoding="utf-8").splitlines()
     return [json.loads(line) for line in lines[-limit:]]
+
+
+def append_client_message(client_id: str, display_name: str, message: str) -> None:
+    """LINEから届いたメッセージの原文を、あとで振り返れるように保存する。"""
+    _append_jsonl(
+        CLIENT_LOG_FILE,
+        {
+            "at": datetime.now(timezone.utc).isoformat(),
+            "client_id": client_id,
+            "display_name": display_name,
+            "message": message,
+        },
+    )
+
+
+def list_clients() -> list[dict]:
+    """クライアントごとの最新の表示名とメッセージ件数を一覧にする。"""
+    clients: dict[str, dict] = {}
+    for record in read_jsonl(CLIENT_LOG_FILE, limit=10_000):
+        client_id = record["client_id"]
+        entry = clients.setdefault(
+            client_id,
+            {"client_id": client_id, "display_name": record["display_name"], "message_count": 0},
+        )
+        entry["display_name"] = record["display_name"]
+        entry["message_count"] += 1
+        entry["last_message_at"] = record["at"]
+    return list(clients.values())
+
+
+def get_client_messages(client_id: str, limit: int = 200) -> list[dict]:
+    all_records = read_jsonl(CLIENT_LOG_FILE, limit=10_000)
+    matching = [r for r in all_records if r["client_id"] == client_id]
+    return matching[-limit:]
 
 
 def _load_usage() -> dict:

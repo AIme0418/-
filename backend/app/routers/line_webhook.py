@@ -9,12 +9,13 @@ from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Request
 from ..config import settings
 from ..llm_clients import generate_reply
 from ..rate_limit import enforce_daily_limit
-from ..storage import build_system_prompt_with_context, log_security_event
+from ..storage import append_client_message, build_system_prompt_with_context, log_security_event
 
 logger = logging.getLogger("line_webhook")
 router = APIRouter()
 
 LINE_REPLY_URL = "https://api.line.me/v2/bot/message/reply"
+LINE_PROFILE_URL = "https://api.line.me/v2/bot/profile/{user_id}"
 
 
 def _verify_signature(body: bytes, signature: str) -> bool:
@@ -49,7 +50,21 @@ async def _reply_to_line(reply_token: str, text: str) -> None:
         logger.exception("LINE reply request failed")
 
 
-async def _handle_text_message(reply_token: str, user_text: str) -> None:
+async def _fetch_display_name(user_id: str) -> str:
+    if not settings.line_channel_access_token:
+        return user_id
+    headers = {"Authorization": f"Bearer {settings.line_channel_access_token}"}
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(LINE_PROFILE_URL.format(user_id=user_id), headers=headers)
+            if resp.status_code == 200:
+                return resp.json().get("displayName", user_id)
+    except httpx.HTTPError:
+        logger.exception("Failed to fetch LINE display name")
+    return user_id
+
+
+async def _handle_text_message(reply_token: str, user_id: str, user_text: str) -> None:
     try:
         enforce_daily_limit()
     except HTTPException:
@@ -58,8 +73,14 @@ async def _handle_text_message(reply_token: str, user_text: str) -> None:
         )
         return
 
+    display_name = await _fetch_display_name(user_id)
+    append_client_message(user_id, display_name, user_text)
+
+    system_prompt = (
+        f"{build_system_prompt_with_context()}\n\n【相手の表示名】{display_name}"
+    )
     try:
-        reply_text = await generate_reply(user_text, build_system_prompt_with_context())
+        reply_text = await generate_reply(user_text, system_prompt)
     except Exception:
         logger.exception("LLM generation failed")
         reply_text = "ごめんなさい、少し調子が悪いみたいです。もう一度話しかけてもらえますか？"
@@ -82,8 +103,9 @@ async def line_webhook(
     for event in payload.get("events", []):
         if event.get("type") == "message" and event["message"].get("type") == "text":
             reply_token = event["replyToken"]
+            user_id = event.get("source", {}).get("userId", "unknown")
             user_text = event["message"]["text"]
-            background_tasks.add_task(_handle_text_message, reply_token, user_text)
+            background_tasks.add_task(_handle_text_message, reply_token, user_id, user_text)
 
     # LINEにはすぐ200を返し、実処理はバックグラウンドで行う
     return {"status": "ok"}

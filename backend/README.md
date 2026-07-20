@@ -37,6 +37,10 @@ uvicorn main:app --reload --port 8000
 | POST | `/api/healy-data/coaching-report` | Healyコーチング分析レポートの受信（`client_initials`はイニシャルで保存すること） | 同上 |
 | POST/GET | `/api/external-gpt` | 他GPTからの回答の受信/一覧 | 同上 |
 | POST | `/api/public-chat` | フロントエンド用の公開チャット窓口（1日上限＋IPごとの簡易レート制限で保護） | なし |
+| GET | `/api/clients` | LINEで相談してきたクライアントの一覧（表示名・件数） | `Authorization: Bearer <ADMIN_API_TOKEN>` |
+| GET | `/api/clients/{client_id}` | そのクライアントとの会話の原文履歴 | 同上 |
+| GET | `/api/clients/{client_id}/summary` | その場でAIが生成する会話の要約（呼ぶたびに生成、キャッシュなし） | 同上 |
+| GET | `/api/security-events` | 不正アクセスの試みなどのログ一覧 | 同上 |
 | GET | `/api/security-events` | 認証失敗・LINE署名不正・アクセス制限超過などの記録一覧 | `Authorization: Bearer <ADMIN_API_TOKEN>` |
 
 ## LINEとの接続手順
