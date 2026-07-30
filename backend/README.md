@@ -18,6 +18,7 @@ copy .env.example .env        # 中身を実際のキーで埋める
 - `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` — 使うものだけでOK
 - `ADMIN_API_TOKEN` — persona更新やhealyデータ取得を守るトークン。長いランダム文字列に変更すること
 - `DAILY_MESSAGE_LIMIT` — 1日に処理するLINEメッセージの上限（コスト暴走防止）
+- `ADMIN_LINE_USER_ID` — 管理者本人のLINEユーザーID。ここからのメッセージだけ、下記の管理コマンドとして扱う
 
 ## ローカル起動
 
@@ -41,6 +42,14 @@ uvicorn main:app --reload --port 8000
 | GET | `/api/clients/{client_id}` | そのクライアントとの会話の原文履歴 | 同上 |
 | GET | `/api/clients/{client_id}/summary` | その場でAIが生成する会話の要約（呼ぶたびに生成、キャッシュなし） | 同上 |
 | GET | `/api/security-events` | 不正アクセスの試みなどのログ一覧 | 同上 |
+
+## LINEからの管理コマンド
+
+`ADMIN_LINE_USER_ID` に設定したLINEアカウントから話しかけると、以下のキーワードだけ愛美さんとの会話ではなく管理コマンドとして扱われる（それ以外のメッセージは通常通り会話になる）。
+
+- `クライアント一覧` — 相談してきた人の一覧を返信
+- `要約 〇〇さん` — その人との会話の要約を返信
+- `セキュリティ確認` — 直近の不正アクセスの試みを返信
 | GET | `/api/security-events` | 認証失敗・LINE署名不正・アクセス制限超過などの記録一覧 | `Authorization: Bearer <ADMIN_API_TOKEN>` |
 
 ## LINEとの接続手順

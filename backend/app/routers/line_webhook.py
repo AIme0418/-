@@ -6,6 +6,7 @@ import logging
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Request
 
+from ..admin_commands import handle_admin_command
 from ..config import settings
 from ..llm_clients import generate_reply
 from ..rate_limit import enforce_daily_limit
@@ -65,6 +66,16 @@ async def _fetch_display_name(user_id: str) -> str:
 
 
 async def _handle_text_message(reply_token: str, user_id: str, user_text: str) -> None:
+    if settings.admin_line_user_id and user_id == settings.admin_line_user_id:
+        try:
+            admin_reply = await handle_admin_command(user_text)
+        except Exception:
+            logger.exception("Admin command handling failed")
+            admin_reply = None
+        if admin_reply is not None:
+            await _reply_to_line(reply_token, admin_reply)
+            return
+
     try:
         enforce_daily_limit()
     except HTTPException:

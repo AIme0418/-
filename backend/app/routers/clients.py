@@ -23,6 +23,24 @@ SUMMARY_SYSTEM_PROMPT = (
 )
 
 
+async def summarize_client(client_id: str) -> dict:
+    """指定したクライアントの会話履歴を要約する。LINE経由の管理者コマンドからも共有で使う。"""
+    messages = get_client_messages(client_id)
+    if not messages:
+        raise ValueError("この方の会話履歴が見つかりません。")
+
+    display_name = messages[-1]["display_name"]
+    transcript = "\n".join(f"・{m['message']}" for m in messages)
+    summary = await generate_reply(transcript, SUMMARY_SYSTEM_PROMPT)
+
+    return {
+        "client_id": client_id,
+        "display_name": display_name,
+        "message_count": len(messages),
+        "summary": summary,
+    }
+
+
 @router.get("/api/clients")
 def get_clients():
     return list_clients()
@@ -35,22 +53,10 @@ def get_client_history(client_id: str, limit: int = 200):
 
 @router.get("/api/clients/{client_id}/summary")
 async def get_client_summary(client_id: str):
-    messages = get_client_messages(client_id)
-    if not messages:
-        raise HTTPException(status_code=404, detail="この方の会話履歴が見つかりません。")
-
-    display_name = messages[-1]["display_name"]
-    transcript = "\n".join(f"・{m['message']}" for m in messages)
-
     try:
-        summary = await generate_reply(transcript, SUMMARY_SYSTEM_PROMPT)
+        return await summarize_client(client_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception:
         logger.exception("Client summary generation failed")
         raise HTTPException(status_code=502, detail="要約の生成に失敗しました。もう一度お試しください。")
-
-    return {
-        "client_id": client_id,
-        "display_name": display_name,
-        "message_count": len(messages),
-        "summary": summary,
-    }

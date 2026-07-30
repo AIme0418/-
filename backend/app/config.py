@@ -10,6 +10,7 @@ class Settings(BaseSettings):
 
     line_channel_secret: str = ""
     line_channel_access_token: str = ""
+    admin_line_user_id: str = ""
 
     gemini_api_key: str = ""
     anthropic_api_key: str = ""
