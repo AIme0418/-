@@ -75,3 +75,46 @@ def test_build_system_prompt_with_summary(tmp_path, monkeypatch):
     assert storage.DEFAULT_PERSONA["system_prompt"] in prompt
     assert "M.I." in prompt
     assert "自己犠牲というテーマに向き合っています。" in prompt
+
+
+def test_client_link_save_and_resolve(tmp_path, monkeypatch):
+    monkeypatch.setattr(storage, "CLIENT_LINK_FILE", tmp_path / "client_links.json")
+
+    assert storage.resolve_client_id_by_initials("M.I.") is None
+
+    storage.save_client_link("M.I.", "U123", "たろう")
+
+    assert storage.resolve_client_id_by_initials("M.I.") == "U123"
+
+
+def test_resolve_client_id_by_display_name(tmp_path, monkeypatch):
+    monkeypatch.setattr(storage, "CLIENT_LOG_FILE", tmp_path / "client_conversations.jsonl")
+    storage.append_client_message("U456", "はなこ", "こんにちは")
+
+    assert storage.resolve_client_id_by_display_name("はなこ") == "U456"
+    assert storage.resolve_client_id_by_display_name("見つからない人") is None
+
+
+def test_client_analysis_save_and_load(tmp_path, monkeypatch):
+    monkeypatch.setattr(storage, "CLIENT_ANALYSIS_FILE", tmp_path / "client_analyses.json")
+
+    assert storage.load_client_analysis("U123") is None
+
+    storage.save_client_analysis("U123", "M.I.", "自己犠牲というテーマが会話にも表れています。")
+    analysis = storage.load_client_analysis("U123")
+
+    assert analysis["client_initials"] == "M.I."
+    assert analysis["analysis"] == "自己犠牲というテーマが会話にも表れています。"
+
+
+def test_build_system_prompt_includes_client_analysis_when_linked(tmp_path, monkeypatch):
+    monkeypatch.setattr(storage, "PERSONA_FILE", tmp_path / "persona.json")
+    monkeypatch.setattr(storage, "ACTIVE_HEALY_SUMMARY_FILE", tmp_path / "summary.json")
+    monkeypatch.setattr(storage, "CLIENT_ANALYSIS_FILE", tmp_path / "client_analyses.json")
+    storage.save_client_analysis("U123", "M.I.", "自己犠牲というテーマが会話にも表れています。")
+
+    prompt_for_linked_client = storage.build_system_prompt_with_context("U123")
+    prompt_for_other_client = storage.build_system_prompt_with_context("U999")
+
+    assert "自己犠牲というテーマが会話にも表れています。" in prompt_for_linked_client
+    assert "自己犠牲というテーマが会話にも表れています。" not in prompt_for_other_client

@@ -88,7 +88,7 @@ async def _handle_text_message(reply_token: str, user_id: str, user_text: str) -
     append_client_message(user_id, display_name, user_text)
 
     system_prompt = (
-        f"{build_system_prompt_with_context()}\n\n【相手の表示名】{display_name}"
+        f"{build_system_prompt_with_context(user_id)}\n\n【相手の表示名】{display_name}"
     )
     try:
         reply_text = await generate_reply(user_text, system_prompt)

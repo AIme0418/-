@@ -13,6 +13,8 @@ USAGE_FILE = DATA_DIR / "usage.json"
 ACTIVE_HEALY_SUMMARY_FILE = DATA_DIR / "active_healy_summary.json"
 SECURITY_LOG_FILE = DATA_DIR / "security_events.jsonl"
 CLIENT_LOG_FILE = DATA_DIR / "client_conversations.jsonl"
+CLIENT_LINK_FILE = DATA_DIR / "client_links.json"
+CLIENT_ANALYSIS_FILE = DATA_DIR / "client_analyses.json"
 
 _lock = Lock()
 
@@ -170,8 +172,62 @@ def load_active_healy_summary() -> dict | None:
     return json.loads(ACTIVE_HEALY_SUMMARY_FILE.read_text(encoding="utf-8"))
 
 
-def build_system_prompt_with_context() -> str:
-    """persona設定に、あれば直近のHealy要約を添えて返す。"""
+def load_client_links() -> dict:
+    if CLIENT_LINK_FILE.exists():
+        return json.loads(CLIENT_LINK_FILE.read_text(encoding="utf-8"))
+    return {}
+
+
+def save_client_link(client_initials: str, client_id: str, display_name: str = "") -> None:
+    """Healyレポートのイニシャルと、LINEのclient_idを紐づけて記憶する。"""
+    with _lock:
+        links = load_client_links()
+        links[client_initials] = {
+            "client_id": client_id,
+            "display_name": display_name,
+            "linked_at": datetime.now(timezone.utc).isoformat(),
+        }
+        CLIENT_LINK_FILE.write_text(json.dumps(links, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def resolve_client_id_by_initials(client_initials: str) -> str | None:
+    link = load_client_links().get(client_initials)
+    return link["client_id"] if link else None
+
+
+def resolve_client_id_by_display_name(display_name: str) -> str | None:
+    for client in list_clients():
+        if client["display_name"] == display_name:
+            return client["client_id"]
+    return None
+
+
+def load_client_analyses() -> dict:
+    if CLIENT_ANALYSIS_FILE.exists():
+        return json.loads(CLIENT_ANALYSIS_FILE.read_text(encoding="utf-8"))
+    return {}
+
+
+def save_client_analysis(client_id: str, client_initials: str, analysis: str) -> None:
+    """会話履歴とHealy分析を突き合わせた「深い気づき」を、クライアントごとに1件保持する。"""
+    with _lock:
+        analyses = load_client_analyses()
+        analyses[client_id] = {
+            "client_initials": client_initials,
+            "analysis": analysis,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        CLIENT_ANALYSIS_FILE.write_text(
+            json.dumps(analyses, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+
+
+def load_client_analysis(client_id: str) -> dict | None:
+    return load_client_analyses().get(client_id)
+
+
+def build_system_prompt_with_context(client_id: str | None = None) -> str:
+    """persona設定に、あれば直近のHealy要約と、この人向けの深い気づきを添えて返す。"""
     prompt = load_persona()["system_prompt"]
     summary = load_active_healy_summary()
     if summary:
@@ -180,6 +236,16 @@ def build_system_prompt_with_context() -> str:
             f"の要約: {summary['summary']}\n"
             "この内容を踏まえつつ、断定せず自然に会話に活かしてください。"
         )
+    if client_id:
+        analysis = load_client_analysis(client_id)
+        if analysis:
+            prompt += (
+                f"\n\n【参考情報（深い気づき）】このかた（{analysis['client_initials']}）について、"
+                "Healyの分析データとこれまでの会話から見えてきた気づき: "
+                f"{analysis['analysis']}\n"
+                "これは押しつけるものではないので、会話の流れの中で自然に触れられそうな"
+                "ときだけそっと活かしてください。毎回触れる必要はありません。"
+            )
     return prompt
 
 
