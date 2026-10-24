@@ -97,8 +97,9 @@
   .close { border: 0; background: #fff; width: 40px; height: 40px; border-radius: 50%; font-size: 18px; box-shadow: var(--shadow); }
   .orb-wrap { display: grid; place-items: center; height: 260px; position: relative; }
   .orb { width: 150px; height: 150px; border-radius: 50%; opacity: .9; box-shadow: 0 0 60px var(--ring); }
-  .orb.breath { animation: breath 10s ease-in-out infinite; }
-  @keyframes breath { 0%, 100% { transform: scale(.78); } 45%, 55% { transform: scale(1.12); } }
+  /* 4-7-8呼吸（19秒周期）：4秒すって（0〜21%）、7秒とめて（〜58%）、8秒はく。JS の BREATH と合わせる */
+  .orb.breath { animation: breath 19s ease-in-out infinite; }
+  @keyframes breath { 0%, 100% { transform: scale(.78); } 21%, 58% { transform: scale(1.12); } }
   .orb-text { position: absolute; text-align: center; color: #fff; font-weight: 800; text-shadow: 0 1px 6px rgba(120,60,90,.35); }
   .orb-text .time { font-size: 30px; letter-spacing: 1px; }
   .orb-text .cue { font-size: 13px; margin-top: 4px; }
@@ -221,7 +222,7 @@ function loadData() {
   let d = {};
   try { d = JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch (e) { d = {}; }
   return {
-    settings: Object.assign({ name: '', minutes: 15, noise: '', volume: 35 }, d.settings || {}),
+    settings: Object.assign({ name: '', minutes: 15, noise: '', volume: 35, fluct: 1 }, d.settings || {}),
     favs: Array.isArray(d.favs) ? d.favs : [],
     sessions: Array.isArray(d.sessions) ? d.sessions : [],
     checks: Array.isArray(d.checks) ? d.checks : [],
@@ -253,8 +254,12 @@ const callName = () => data.settings.name ? `${esc(data.settings.name)}さん` :
 function moodOf(v) { return MOODS.find(m => m.v === v) || MOODS[2]; }
 
 // ===== 音のエンジン（Web Audio API） =====
+const FLUCT_PERIOD = 120; // ゆらぎ波形の一周（秒）
+const FLUCT_DEPTH = [0, 0.1, 0.2, 0.35]; // なし / ひかえめ / ふつう / しっかり（音量の振れ幅）
+const FLUCT_LABEL = ['なし', 'ひかえめ', 'ふつう', 'しっかり'];
+const FILTER_ON = 2000, FILTER_OFF = 20000; // ノイズのこもり具合（Hz）
 const Engine = {
-  ctx: null, master: null, nodes: [], buffers: {},
+  ctx: null, master: null, nodes: [], buffers: {}, mods: [], filters: [], depth: 0,
   async ensure() {
     if (!this.ctx) {
       const AC = window.AudioContext || window.webkitAudioContext;
@@ -288,24 +293,60 @@ const Engine = {
     }
     return (this.buffers[kind] = buf);
   },
-  addNoise(kind, level) {
+  // 1/fゆらぎの波形：振幅 1/√k（＝パワーが周波数に反比例）の正弦波を重ねる。
+  // FLUCT_PERIOD 秒でぴったり一周するので、ループのつなぎ目ができない
+  fluctBuffer() {
+    const N = 6000, K = 240, d = new Float32Array(N);
+    for (let k = 1; k <= K; k++) {
+      const amp = 1 / Math.sqrt(k), ph = Math.random() * Math.PI * 2, w = 2 * Math.PI * k / N;
+      for (let i = 0; i < N; i++) d[i] += amp * Math.sin(w * i + ph);
+    }
+    let peak = 0;
+    for (let i = 0; i < N; i++) peak = Math.max(peak, Math.abs(d[i]));
+    for (let i = 0; i < N; i++) d[i] /= peak;
+    this.fluctData = d;
+    const buf = this.ctx.createBuffer(1, N, 22050);
+    buf.getChannelData(0).set(d);
+    return buf;
+  },
+  // param を 1/fゆらぎで動かす。offset をずらすと、同じ波形でも別々の揺れ方になる
+  modulate(param, scale, offset) {
+    const ctx = this.ctx, src = ctx.createBufferSource();
+    src.buffer = this.fluctBuf; src.loop = true;
+    src.playbackRate.value = this.fluctBuf.duration / FLUCT_PERIOD;
+    const g = ctx.createGain(); g.gain.value = scale * this.depth;
+    src.connect(g).connect(param);
+    src.start(0, this.fluctBuf.duration * offset);
+    this.nodes.push(src); this.mods.push({ g, scale });
+  },
+  // 音量をゆらすための通り道をはさむ
+  swayVolume(node, scale, offset) {
+    const g = this.ctx.createGain(); g.gain.value = 1;
+    node.connect(g); this.modulate(g.gain, scale, offset);
+    return g;
+  },
+  noiseSource(kind, level) {
     const ctx = this.ctx;
     const src = ctx.createBufferSource(); src.buffer = this.noiseBuffer(kind); src.loop = true;
     const g = ctx.createGain(); g.gain.value = level;
-    src.connect(g).connect(this.master); src.start();
+    src.connect(g); src.start();
     this.nodes.push(src);
+    return g;
   },
   addTone(freq, level) {
     const ctx = this.ctx;
     const osc = ctx.createOscillator(); osc.type = 'sine'; osc.frequency.value = freq;
     const g = ctx.createGain(); g.gain.value = level;
-    // ゆっくりした音量のゆらぎ（約12秒周期）
-    const lfo = ctx.createOscillator(); lfo.frequency.value = 0.08;
-    const lfoGain = ctx.createGain(); lfoGain.gain.value = level * 0.25;
-    lfo.connect(lfoGain).connect(g.gain);
-    osc.connect(g).connect(this.master);
-    osc.start(); lfo.start();
-    this.nodes.push(osc, lfo);
+    osc.connect(g); osc.start();
+    this.nodes.push(osc);
+    // Hz は変えずに、音量と左右の位置だけをゆらす
+    let out = this.swayVolume(g, 1, 0);
+    if (ctx.createStereoPanner) {
+      const pan = ctx.createStereoPanner();
+      out.connect(pan); this.modulate(pan.pan, 1.4, 0.37);
+      out = pan;
+    }
+    out.connect(this.master);
   },
   addBinaural(carrier, beat, level) {
     const ctx = this.ctx, merger = ctx.createChannelMerger(2);
@@ -315,12 +356,23 @@ const Engine = {
       osc.connect(g).connect(merger, 0, ch); osc.start();
       this.nodes.push(osc);
     });
-    merger.connect(this.master);
+    // 左右や高さを動かすとビートが崩れるので、音量だけ
+    this.swayVolume(merger, 1, 0).connect(this.master);
   },
-  async play(p, { volume, noise }) {
+  addNoise(kind, level) {
+    // 音量とこもり具合をゆらして、寄せては返す波・強弱のある風に近づける
+    const f = this.ctx.createBiquadFilter(); f.type = 'lowpass';
+    f.frequency.value = this.depth ? FILTER_ON : FILTER_OFF;
+    this.noiseSource(kind, level).connect(f);
+    this.modulate(f.detune, 3000, 0.37); this.filters.push(f);
+    this.swayVolume(f, 1, 0).connect(this.master);
+  },
+  async play(p, { volume, noise, fluct }) {
     await this.ensure();
     this.stopNow();
     const ctx = this.ctx, t = ctx.currentTime;
+    this.depth = FLUCT_DEPTH[fluct] || 0;
+    this.fluctBuf = this.fluctBuffer(); this.fluctStart = t;
     this.master = ctx.createGain();
     this.master.gain.setValueAtTime(0, t);
     this.master.gain.linearRampToValueAtTime(volume, t + 4);
@@ -328,7 +380,22 @@ const Engine = {
     if (p.type === 'tone') this.addTone(p.freq, 0.45);
     if (p.type === 'binaural') this.addBinaural(p.carrier, p.beat, 0.4);
     if (p.type === 'noise') this.addNoise(p.noise, 0.7);
-    if (noise && p.type !== 'noise') this.addNoise(noise, 0.16);
+    // うしろの音はメインとは別のリズムでゆらす
+    if (noise && p.type !== 'noise') this.swayVolume(this.noiseSource(noise, 0.16), 1.5, 0.61).connect(this.master);
+  },
+  setFluct(level) {
+    this.depth = FLUCT_DEPTH[level] || 0;
+    if (!this.master) return;
+    const t = this.ctx.currentTime;
+    this.mods.forEach(m => m.g.gain.setTargetAtTime(m.scale * this.depth, t, 0.4));
+    this.filters.forEach(f => f.frequency.setTargetAtTime(this.depth ? FILTER_ON : FILTER_OFF, t, 0.4));
+  },
+  // 画面のオーブを音と同じゆらぎで動かすための値（-depth〜+depth）
+  fluctValue(offset) {
+    if (!this.master || !this.fluctData) return 0;
+    const N = this.fluctData.length;
+    const pos = ((this.ctx.currentTime - this.fluctStart) / FLUCT_PERIOD + offset) % 1;
+    return this.fluctData[Math.floor(pos * N)] * this.depth;
   },
   setVolume(v) {
     if (!this.master) return;
@@ -343,7 +410,7 @@ const Engine = {
   },
   stopNow() {
     this.nodes.forEach(n => { try { n.stop(); } catch (e) {} });
-    this.nodes = [];
+    this.nodes = []; this.mods = []; this.filters = [];
     if (this.master) { try { this.master.disconnect(); } catch (e) {} this.master = null; }
   },
 };
@@ -522,6 +589,17 @@ function renderSound() {
 
 // ===== 再生画面 =====
 let session = null; // { p, before, minutes, noise, startedAt, timer, playing }
+// 4-7-8呼吸（CSS の breath と合わせる）
+const BREATH = [{ cue: 'すって', sec: 4 }, { cue: 'とめて', sec: 7 }, { cue: 'はいて', sec: 8 }];
+const BREATH_CYCLE = BREATH.reduce((t, b) => t + b.sec, 0);
+function breathCue(elapsed) {
+  let t = elapsed % BREATH_CYCLE;
+  for (const b of BREATH) {
+    if (t < b.sec) return `${b.cue}… ${Math.ceil(b.sec - t)}`;
+    t -= b.sec;
+  }
+  return '';
+}
 let wakeLock = null;
 function recentMood() {
   const c = data.checks[data.checks.length - 1];
@@ -533,8 +611,12 @@ function openPlayer(id) {
     $('#player').classList.add('show');
     return;
   }
-  const p = progById(id);
-  session = { p, before: recentMood(), minutes: data.settings.minutes, noise: p.type === 'noise' ? '' : data.settings.noise, playing: false };
+  const p = progById(id), st = data.settings;
+  // 直近のチェックで「眠りたい」「ゆっくりしたい」なら、ゆらぎを「ふつう」以上に
+  const c = data.checks[data.checks.length - 1];
+  const calm = c && Date.now() - c.at < 60 * 60 * 1000 && ['sleep', 'relax'].includes(c.answers.goal);
+  const fluct = calm && st.fluct > 0 ? Math.max(2, st.fluct) : st.fluct;
+  session = { p, before: recentMood(), minutes: st.minutes, noise: p.type === 'noise' ? '' : st.noise, fluct, playing: false };
   renderPlayer();
   $('#player').classList.add('show');
 }
@@ -550,14 +632,15 @@ function renderPlayer() {
       <div style="font-size:22px;font-weight:800;margin-top:2px">${esc(p.name)}</div>
       <p class="sub" style="margin:6px 0 0">${esc(p.desc)}</p>
     </div>
-    <div class="orb-wrap"><div class="${orbClass}"></div>
+    <div class="orb-wrap"><div id="orbFx"><div class="${orbClass}"></div></div>
       <div class="orb-text"><div class="time" id="remain">${fmtTime(remain)}</div><div class="cue" id="cue">${s.playing ? 'ゆっくり呼吸してね' : 'じゅんびOK？'}</div></div></div>
 
     ${s.playing ? `
       <div class="label">音量</div>
       <input type="range" min="0" max="100" value="${data.settings.volume}" id="vol">
+      ${fluctField(s.fluct)}
       <button class="btn block" style="margin-top:18px" id="stopBtn">おわりにする</button>
-      <p class="note" style="margin-top:14px">画面をつけたまま聴いてね。スマホをロックすると音が止まることがあるよ。</p>
+      <p class="note" style="margin-top:14px">呼吸ガイドは「4秒すって・7秒とめて・8秒はく」。苦しいときは無理せず、楽なペースで呼吸してね。<br>画面をつけたまま聴いてね。スマホをロックすると音が止まることがあるよ。</p>
     ` : `
       <div class="label">いまの気分</div>
       <div class="moods">${MOODS.map(m => `<button class="mood ${s.before === m.v ? 'on' : ''}" data-before="${m.v}">${m.e}<small>${m.t}</small></button>`).join('')}</div>
@@ -565,6 +648,7 @@ function renderPlayer() {
       <div class="chips">${[5, 10, 15, 20, 30, 60].map(m => `<button class="chip ${s.minutes === m ? 'on' : ''}" data-min="${m}">${m}分</button>`).join('')}</div>
       ${p.type !== 'noise' ? `<div class="label">うしろに流す音</div>
       <div class="chips">${[['', 'なし'], ['pink', '雨音'], ['brown', '波の音']].map(([k, l]) => `<button class="chip ${s.noise === k ? 'on' : ''}" data-noise="${k}">${l}</button>`).join('')}</div>` : ''}
+      ${fluctField(s.fluct)}
       <div class="label">音量</div>
       <input type="range" min="0" max="100" value="${data.settings.volume}" id="vol">
       <button class="btn block" style="margin-top:18px" id="playBtn">▶ はじめる</button>
@@ -584,27 +668,51 @@ function renderPlayer() {
   el.querySelectorAll('[data-before]').forEach(b => b.onclick = () => { s.before = Number(b.dataset.before); renderPlayer(); });
   el.querySelectorAll('[data-min]').forEach(b => b.onclick = () => { s.minutes = Number(b.dataset.min); renderPlayer(); });
   el.querySelectorAll('[data-noise]').forEach(b => b.onclick = () => { s.noise = b.dataset.noise; renderPlayer(); });
+  el.querySelectorAll('[data-fluct]').forEach(b => b.onclick = () => {
+    s.fluct = Number(b.dataset.fluct);
+    if (!s.playing) return renderPlayer();
+    // 再生中は描き直さずに切りかえる（オーブのアニメーションを止めないため）
+    Engine.setFluct(s.fluct);
+    el.querySelectorAll('[data-fluct]').forEach(x => x.classList.toggle('on', x === b));
+  });
   if ($('#playBtn')) $('#playBtn').onclick = startSession;
   if ($('#stopBtn')) $('#stopBtn').onclick = () => endSession(false);
+}
+function fluctField(cur) {
+  return `<div class="label">1/fゆらぎ</div>
+    <div class="chips">${FLUCT_LABEL.map((l, i) => `<button class="chip ${cur === i ? 'on' : ''}" data-fluct="${i}">${l}</button>`).join('')}</div>
+    <p class="sub" style="margin:6px 0 0">自然界にあるゆらぎのリズムで、音がふわっと揺れるよ</p>`;
+}
+// オーブを音と同じゆらぎで動かす（大きさ＝音量、左右＝音の位置）
+function animateOrb() {
+  if (!session || !session.playing) return;
+  const fx = $('#orbFx');
+  if (fx) {
+    const a = Engine.fluctValue(0), b = Engine.fluctValue(0.37);
+    fx.style.transform = `translateX(${b * 30}px) scale(${1 + a * 0.25})`;
+    fx.style.filter = `brightness(${1 + a * 0.3})`;
+  }
+  requestAnimationFrame(animateOrb);
 }
 async function startSession() {
   const s = session;
   try {
-    await Engine.play(s.p, { volume: volToGain(data.settings.volume), noise: s.noise });
+    await Engine.play(s.p, { volume: volToGain(data.settings.volume), noise: s.noise, fluct: s.fluct });
   } catch (e) {
     toast('音を再生できなかったみたい…'); return;
   }
   s.playing = true; s.startedAt = Date.now();
   try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) { wakeLock = null; }
   renderPlayer();
-  s.timer = setInterval(tick, 500);
+  s.timer = setInterval(tick, 250);
+  requestAnimationFrame(animateOrb);
 }
 function tick() {
   const s = session; if (!s || !s.playing) return;
   const elapsed = (Date.now() - s.startedAt) / 1000, remain = s.minutes * 60 - elapsed;
   const r = $('#remain'); if (r) r.textContent = fmtTime(remain);
-  // 10秒周期の呼吸ガイド（アニメーションと同じ周期）
-  const c = $('#cue'); if (c) c.textContent = (elapsed % 10) < 4.5 ? 'すって…' : 'はいて…';
+  // 呼吸ガイド（オーブのアニメーションと同じ周期）
+  const c = $('#cue'); if (c) c.textContent = breathCue(elapsed);
   if (remain <= 0) endSession(true);
 }
 async function endSession(completed) {
@@ -615,7 +723,7 @@ async function endSession(completed) {
   const btn = $('#stopBtn'); if (btn) { btn.disabled = true; btn.textContent = 'ゆっくり音を小さくしてるよ…'; }
   await Engine.fadeOut(completed ? 5 : 2.5);
   $('#player').classList.remove('show');
-  if (minutes >= 1) openRecord({ p: s.p, before: s.before, minutes, completed });
+  if (minutes >= 1) openRecord({ p: s.p, before: s.before, minutes, completed, fluct: s.fluct });
   else toast('1分未満だったので、きろくはお休みしたよ');
   session = null;
   render();
@@ -639,7 +747,7 @@ function openRecord(r) {
     document.querySelectorAll('[data-after]').forEach(b => b.onclick = () => { r.memo = $('#memo').value; after = Number(b.dataset.after); draw(); });
     $('#skipRec').onclick = closeModal;
     $('#saveRec').onclick = () => {
-      data.sessions.push({ id: uid(), at: Date.now(), programId: r.p.id, programName: r.p.name, minutes: Math.round(r.minutes * 10) / 10, before: r.before || 0, after, memo: $('#memo').value.trim().slice(0, 500), completed: r.completed });
+      data.sessions.push({ id: uid(), at: Date.now(), programId: r.p.id, programName: r.p.name, minutes: Math.round(r.minutes * 10) / 10, before: r.before || 0, after, memo: $('#memo').value.trim().slice(0, 500), completed: r.completed, fluct: r.fluct });
       save(); closeModal();
       toast(after && r.before && after > r.before ? '気分が少し上がったね✨ 記録したよ' : '記録したよ📖');
       render();
@@ -687,6 +795,16 @@ function renderLog() {
   // プログラム別の気分の変化
   const effect = {};
   pairs.forEach(s => { (effect[s.programId] = effect[s.programId] || []).push(s.after - s.before); });
+  // ゆらぎあり／なしでの気分の変化の比較（ゆらぎ導入前の記録は fluct がないので対象外）
+  const avgChange = a => a.reduce((t, s) => t + (s.after - s.before), 0) / a.length;
+  const withF = pairs.filter(s => s.fluct > 0), withoutF = pairs.filter(s => s.fluct === 0);
+  let fluctNote = '';
+  if (withF.length >= 2 && withoutF.length >= 2) {
+    const diff = avgChange(withF) - avgChange(withoutF);
+    fluctNote = Math.abs(diff) < 0.2 ? '🌊 1/fゆらぎのあり・なしで、気分の変化はほとんど同じみたい。好きなほうでOKだよ。'
+      : diff > 0 ? `🌊 1/fゆらぎありのほうが、気分の上がり方が平均 <b style="color:var(--accent-dark)">+${diff.toFixed(1)}</b> 段階大きいよ。`
+      : `🌊 1/fゆらぎなしのほうが、気分の上がり方が平均 <b style="color:var(--accent-dark)">+${(-diff).toFixed(1)}</b> 段階大きいよ。${callName()}はまっすぐな音が合うのかも。`;
+  }
   const best = Object.entries(effect).filter(([, a]) => a.length >= 2).map(([id, a]) => [id, a.reduce((x, y) => x + y, 0) / a.length]).sort((a, b) => b[1] - a[1])[0];
 
   const recent = ss.slice(-14);
@@ -703,6 +821,7 @@ function renderLog() {
       <div class="legend"><span><i style="background:#c9a4f5"></i>聴く前</span><span><i style="background:#ff87ac"></i>聴いたあと</span></div>
       ${avgDiff !== null ? `<p class="sub" style="margin:10px 0 0">聴く前→あとの気分は、平均で <b style="color:var(--accent-dark)">${avgDiff >= 0 ? '+' : ''}${avgDiff.toFixed(1)}</b> 段階の変化だよ。</p>` : `<p class="sub" style="margin:10px 0 0">聴く前と後の気分を両方入れると、変化がわかるよ。</p>`}
       ${best && best[1] > 0 && progById(best[0]) ? `<p class="sub" style="margin:6px 0 0">💡 ${callName()}と相性がよさそうなのは「${esc(progById(best[0]).name)}」みたい。</p>` : ''}
+      ${fluctNote ? `<p class="sub" style="margin:6px 0 0">${fluctNote}</p>` : ''}
     </div>
     <div class="card"><h3>よく聴いている音</h3>
       <div class="plist">${top.map(([id]) => progById(id)).filter(Boolean).map(progCard).join('')}</div>
@@ -710,7 +829,7 @@ function renderLog() {
     <div class="card"><h3>りれき</h3>
       ${ss.slice().reverse().slice(0, 50).map(s => `<div class="entry">
         <div class="grow">
-          <div class="when">${fmtDate(s.at)}・${Math.round(s.minutes)}分${s.completed ? '' : '（途中まで）'}</div>
+          <div class="when">${fmtDate(s.at)}・${Math.round(s.minutes)}分${s.completed ? '' : '（途中まで）'}${s.fluct > 0 ? `・ゆらぎ：${FLUCT_LABEL[s.fluct]}` : ''}</div>
           <div style="font-weight:700;font-size:14px;margin-top:2px">${esc(s.programName)}</div>
           <div style="font-size:13px;margin-top:2px">${s.before ? moodOf(s.before).e : '・'} → ${s.after ? moodOf(s.after).e : '・'}</div>
           ${s.memo ? `<div class="memo">${esc(s.memo)}</div>` : ''}
@@ -737,6 +856,8 @@ function renderSettings() {
       <div class="chips">${[5, 10, 15, 20, 30, 60].map(m => `<button class="chip ${st.minutes === m ? 'on' : ''}" data-smin="${m}">${m}分</button>`).join('')}</div>
       <div class="label">いつもの「うしろに流す音」</div>
       <div class="chips">${[['', 'なし'], ['pink', '雨音'], ['brown', '波の音']].map(([k, l]) => `<button class="chip ${st.noise === k ? 'on' : ''}" data-snoise="${k}">${l}</button>`).join('')}</div>
+      <div class="label">いつもの1/fゆらぎ</div>
+      <div class="chips">${FLUCT_LABEL.map((l, i) => `<button class="chip ${st.fluct === i ? 'on' : ''}" data-sfluct="${i}">${l}</button>`).join('')}</div>
     </div>
     <div class="card"><h3>ホーム画面に追加する</h3>
       <p class="sub" style="margin:0">iPhone：Safariの共有ボタン → 「ホーム画面に追加」<br>Android：Chromeのメニュー → 「ホーム画面に追加」<br>アプリみたいに開けて、オフラインでも使えるよ。</p>
@@ -757,6 +878,7 @@ function renderSettings() {
   nm.onchange = () => { st.name = nm.value.trim(); save(); render(); toast('よび名を保存したよ'); };
   document.querySelectorAll('[data-smin]').forEach(b => b.onclick = () => { st.minutes = Number(b.dataset.smin); save(); renderSettings(); });
   document.querySelectorAll('[data-snoise]').forEach(b => b.onclick = () => { st.noise = b.dataset.snoise; save(); renderSettings(); });
+  document.querySelectorAll('[data-sfluct]').forEach(b => b.onclick = () => { st.fluct = Number(b.dataset.sfluct); save(); renderSettings(); });
   $('#exportBtn').onclick = () => {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');

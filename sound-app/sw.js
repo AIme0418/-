@@ -1,5 +1,5 @@
 // ネットにつながる時は最新版を取りに行き、オフラインの時は保存しておいた版を使う
-const CACHE_NAME = "soundcare-v1";
+const CACHE_NAME = "soundcare-v3";
 const CORE_ASSETS = ["./", "./index.html", "./manifest.json", "./icon.svg"];
 
 self.addEventListener("install", (event) => {
