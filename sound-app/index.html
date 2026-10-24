@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>愛美のサウンドケア</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<meta name="theme-color" content="#ff92ae">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="サウンドケア">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-a: #ffe1ec;
+    --bg-b: #e7dcfb;
+    --bg-c: #d6f3ea;
+    --card: #fffdfc;
+    --accent: #ff92ae;
+    --accent-2: #c9a4f5;
+    --accent-dark: #e0648a;
+    --mint: #7fcfb6;
+    --gold: #f2b766;
+    --text: #5c4956;
+    --muted: #a993a0;
+    --line: #f1e4ea;
+    --ring: rgba(255, 146, 174, 0.35);
+    --shadow: 0 6px 20px rgba(201, 120, 150, 0.12);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    color: var(--text);
+    font-family: "M PLUS Rounded 1c", -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: linear-gradient(160deg, var(--bg-a), var(--bg-b) 55%, var(--bg-c));
+    background-attachment: fixed;
+  }
+  button, input, select, textarea { font-family: inherit; color: inherit; }
+  button { cursor: pointer; }
+  .app { max-width: 520px; margin: 0 auto; padding: 16px 16px calc(96px + env(safe-area-inset-bottom)); }
+  header.top { display: flex; align-items: center; gap: 10px; padding: 6px 2px 14px; }
+  header.top img { width: 38px; height: 38px; }
+  header.top h1 { font-size: 18px; margin: 0; font-weight: 800; }
+  header.top p { margin: 0; font-size: 12px; color: var(--muted); }
+
+  .card { background: var(--card); border-radius: 22px; padding: 18px; box-shadow: var(--shadow); margin-bottom: 14px; }
+  .card h2 { font-size: 16px; margin: 0 0 6px; }
+  .card h3 { font-size: 14px; margin: 0 0 8px; }
+  .sub { font-size: 13px; color: var(--muted); margin: 0 0 12px; line-height: 1.6; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .wrap { flex-wrap: wrap; }
+  .grow { flex: 1; }
+
+  .btn { border: 0; border-radius: 999px; padding: 12px 20px; font-size: 15px; font-weight: 700; background: linear-gradient(135deg, #ffa6c1, #ff87ac); color: #fff; box-shadow: 0 6px 16px var(--ring); }
+  .btn.block { width: 100%; }
+  .btn.ghost { background: #fff; color: var(--accent-dark); box-shadow: none; border: 1.5px solid var(--accent); }
+  .btn.soft { background: #f6ecfb; color: var(--text); box-shadow: none; }
+  .btn.danger { background: #fff; color: #d0526f; border: 1.5px solid #f3b6c4; box-shadow: none; }
+  .btn:disabled { opacity: .5; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { border: 1.5px solid var(--line); background: #fff; border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 500; }
+  .chip.on { border-color: var(--accent); background: #fff0f5; color: var(--accent-dark); font-weight: 700; }
+  .moods { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .mood { border: 1.5px solid var(--line); background: #fff; border-radius: 16px; padding: 8px 2px; font-size: 22px; line-height: 1.1; }
+  .mood small { display: block; font-size: 10px; color: var(--muted); margin-top: 4px; }
+  .mood.on { border-color: var(--accent); background: #fff0f5; }
+
+  /* program list */
+  .plist { display: grid; gap: 10px; }
+  .prog { display: flex; align-items: center; gap: 12px; background: var(--card); border-radius: 18px; padding: 12px 12px 12px 14px; box-shadow: var(--shadow); border: 0; text-align: left; width: 100%; }
+  .prog .dot { width: 44px; height: 44px; border-radius: 50%; flex: none; display: grid; place-items: center; font-size: 11px; font-weight: 800; color: #fff; }
+  .prog .name { font-weight: 700; font-size: 15px; }
+  .prog .desc { font-size: 12px; color: var(--muted); margin-top: 2px; line-height: 1.5; }
+  .star { border: 0; background: none; font-size: 22px; padding: 6px; color: #e8d6de; flex: none; }
+  .star.on { color: var(--gold); }
+  .cat-tone { background: linear-gradient(135deg, #ffb3c8, #ff8fb0); }
+  .cat-binaural { background: linear-gradient(135deg, #cdb1f7, #a98be8); }
+  .cat-noise { background: linear-gradient(135deg, #9ddcc8, #6cc2a8); }
+
+  /* bottom nav */
+  nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(255,253,252,.94); backdrop-filter: blur(10px); border-top: 1px solid var(--line); padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); z-index: 20; }
+  nav.tabs .in { max-width: 520px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); }
+  nav.tabs button { border: 0; background: none; padding: 6px 0; font-size: 11px; color: var(--muted); display: grid; justify-items: center; gap: 2px; }
+  nav.tabs button span { font-size: 20px; }
+  nav.tabs button.on { color: var(--accent-dark); font-weight: 700; }
+
+  /* player overlay */
+  .overlay { position: fixed; inset: 0; z-index: 40; background: linear-gradient(170deg, #fff4f8, #f1eafd 60%, #e6f7f1); overflow-y: auto; display: none; }
+  .overlay.show { display: block; }
+  .overlay .app { padding-bottom: 40px; }
+  .close { border: 0; background: #fff; width: 40px; height: 40px; border-radius: 50%; font-size: 18px; box-shadow: var(--shadow); }
+  .orb-wrap { display: grid; place-items: center; height: 260px; position: relative; }
+  .orb { width: 150px; height: 150px; border-radius: 50%; opacity: .9; box-shadow: 0 0 60px var(--ring); }
+  .orb.breath { animation: breath 10s ease-in-out infinite; }
+  @keyframes breath { 0%, 100% { transform: scale(.78); } 45%, 55% { transform: scale(1.12); } }
+  .orb-text { position: absolute; text-align: center; color: #fff; font-weight: 800; text-shadow: 0 1px 6px rgba(120,60,90,.35); }
+  .orb-text .time { font-size: 30px; letter-spacing: 1px; }
+  .orb-text .cue { font-size: 13px; margin-top: 4px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .note { font-size: 12px; color: var(--muted); line-height: 1.6; background: #fff8fb; border-radius: 12px; padding: 10px 12px; }
+  .label { font-size: 13px; font-weight: 700; margin: 14px 0 8px; }
+
+  /* check */
+  .progress { height: 6px; background: var(--line); border-radius: 99px; overflow: hidden; margin-bottom: 14px; }
+  .progress i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .3s; }
+  .q { font-size: 17px; font-weight: 700; margin: 4px 0 14px; }
+  .opts { display: grid; gap: 8px; }
+  .opt { border: 1.5px solid var(--line); background: #fff; border-radius: 16px; padding: 13px 14px; text-align: left; font-size: 15px; display: flex; gap: 10px; align-items: center; }
+  .opt:active { border-color: var(--accent); }
+  .bubble { background: #f6ecfb; border-radius: 18px 18px 18px 6px; padding: 12px 14px; font-size: 14px; line-height: 1.7; margin-bottom: 12px; }
+  .guide { display: flex; gap: 10px; align-items: flex-start; }
+  .guide img { width: 36px; height: 36px; flex: none; }
+
+  /* log */
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .stat { background: #fff8fb; border-radius: 14px; padding: 10px; text-align: center; }
+  .stat b { display: block; font-size: 20px; color: var(--accent-dark); }
+  .stat small { font-size: 11px; color: var(--muted); }
+  .entry { border-top: 1px solid var(--line); padding: 12px 0; display: flex; gap: 10px; align-items: flex-start; }
+  .entry:first-child { border-top: 0; }
+  .entry .when { font-size: 11px; color: var(--muted); }
+  .entry .memo { font-size: 13px; margin-top: 4px; white-space: pre-wrap; word-break: break-word; }
+  .del { border: 0; background: none; color: #d8bcc8; font-size: 16px; padding: 4px; }
+  .legend { display: flex; gap: 14px; font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 4px; }
+  svg.chart { width: 100%; height: auto; display: block; }
+
+  /* modal */
+  .modal { position: fixed; inset: 0; background: rgba(92, 73, 86, .35); z-index: 60; display: none; align-items: flex-end; justify-content: center; }
+  .modal.show { display: flex; }
+  .sheet { background: var(--card); width: 100%; max-width: 520px; border-radius: 26px 26px 0 0; padding: 22px 18px calc(22px + env(safe-area-inset-bottom)); max-height: 92vh; overflow-y: auto; }
+  textarea, input[type=text], select { width: 100%; border: 1.5px solid var(--line); border-radius: 14px; padding: 11px 12px; font-size: 15px; background: #fff; }
+  textarea { min-height: 80px; resize: vertical; }
+  textarea:focus, input:focus, select:focus { outline: none; border-color: var(--accent); }
+
+  .toast { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); background: var(--text); color: #fff; padding: 10px 18px; border-radius: 999px; font-size: 13px; z-index: 80; opacity: 0; transition: opacity .25s; pointer-events: none; white-space: nowrap; }
+  .toast.show { opacity: .92; }
+  .empty { text-align: center; color: var(--muted); font-size: 13px; padding: 20px 0; }
+  .disclaimer { font-size: 11px; color: var(--muted); line-height: 1.7; text-align: center; padding: 6px 8px 0; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="app" id="main">
+  <header class="top">
+    <img src="icon.svg" alt="">
+    <div>
+      <h1 id="appName">愛美のサウンドケア</h1>
+      <p id="greet"></p>
+    </div>
+  </header>
+  <section id="view-home"></section>
+  <section id="view-sound" class="hidden"></section>
+  <section id="view-log" class="hidden"></section>
+  <section id="view-settings" class="hidden"></section>
+  <p class="disclaimer">このアプリはリラックスや気分転換のための音のアプリで、医療機器ではありません。<br>体調に不安があるときは医療機関に相談してね。</p>
+</div>
+
+<nav class="tabs"><div class="in">
+  <button data-tab="home" class="on"><span>🌸</span>ホーム</button>
+  <button data-tab="sound"><span>🎧</span>サウンド</button>
+  <button data-tab="log"><span>📖</span>きろく</button>
+  <button data-tab="settings"><span>⚙️</span>せってい</button>
+</div></nav>
+
+<div class="overlay" id="player"></div>
+<div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== アプリ設定（ここを書き換えればクライアント向けにカスタマイズできる） =====
+const APP = {
+  name: '愛美のサウンドケア',
+  guide: '愛美',
+  // 「相談する」ボタンのリンク先（LINE公式アカウントのURLなど）。空なら非表示
+  contactUrl: '',
+  contactLabel: '愛美にLINEで相談する',
+};
+
+const MOODS = [
+  { v: 1, e: '😣', t: 'しんどい' },
+  { v: 2, e: '😔', t: 'いまいち' },
+  { v: 3, e: '😐', t: 'ふつう' },
+  { v: 4, e: '🙂', t: 'いい感じ' },
+  { v: 5, e: '😊', t: 'とても良い' },
+];
+
+// type: tone=単音 / binaural=バイノーラルビート / noise=ノイズ
+// w: セルフチェックのおすすめ計算用の重み（mood=気分の落ち込み, fatigue=疲れ, sleep=眠り, stress=緊張）
+const PROGRAMS = [
+  { id: 'b-delta', type: 'binaural', carrier: 180, beat: 2, name: 'おやすみモード', hz: '2Hz', desc: 'ゆっくりした揺らぎで、眠る前のくつろぎ時間に', w: { sleep: 3, fatigue: 1 }, goals: ['sleep'] },
+  { id: 'b-theta', type: 'binaural', carrier: 200, beat: 6, name: 'ふかいリラックス', hz: '6Hz', desc: 'ぼんやり力を抜きたいときに。瞑想のおともにも', w: { stress: 3, fatigue: 1 }, goals: ['relax'] },
+  { id: 'b-alpha', type: 'binaural', carrier: 210, beat: 10, name: 'おだやか集中', hz: '10Hz', desc: '落ち着いたまま、読書や考えごとをしたいときに', w: { stress: 1 }, goals: ['focus', 'relax'] },
+  { id: 'b-beta', type: 'binaural', carrier: 220, beat: 15, name: 'シャキッと作業', hz: '15Hz', desc: '作業や勉強のスイッチを入れたいときに', w: {}, goals: ['focus', 'energy'] },
+  { id: 't-174', type: 'tone', freq: 174, name: 'どっしり安心', hz: '174Hz', desc: '低くて落ち着いた音。体の力を抜きたいときに', w: { fatigue: 2 }, goals: ['relax', 'sleep'] },
+  { id: 't-285', type: 'tone', freq: 285, name: 'やさしいいたわり', hz: '285Hz', desc: 'がんばった日の自分をねぎらう時間に', w: { fatigue: 2, mood: 1 }, goals: ['relax'] },
+  { id: 't-396', type: 'tone', freq: 396, name: 'もやもや手放し', hz: '396Hz', desc: '不安や緊張をいったん横に置きたいときに', w: { stress: 2, mood: 1 }, goals: ['relax'] },
+  { id: 't-417', type: 'tone', freq: 417, name: '気分の切りかえ', hz: '417Hz', desc: '新しいことを始める前のリセットに', w: { mood: 1 }, goals: ['energy', 'balance'] },
+  { id: 't-432', type: 'tone', freq: 432, name: 'ととのうハーモニー', hz: '432Hz', desc: 'まあるく穏やかな響き。毎日のととのえ時間に', w: {}, goals: ['balance', 'relax'] },
+  { id: 't-528', type: 'tone', freq: 528, name: 'あいとやさしさ', hz: '528Hz', desc: '自分にやさしくしたいとき、心をほっとさせたいときに', w: { mood: 3 }, goals: ['relax', 'balance'] },
+  { id: 't-639', type: 'tone', freq: 639, name: 'つながりの音', hz: '639Hz', desc: '人との関係でモヤっとしたとき、心を開きたいときに', w: { mood: 2 }, goals: ['balance'] },
+  { id: 't-741', type: 'tone', freq: 741, name: 'すっきりクリア', hz: '741Hz', desc: '頭の中を整理して、すっきりしたいときに', w: {}, goals: ['focus', 'energy'] },
+  { id: 't-852', type: 'tone', freq: 852, name: 'ひらめきの音', hz: '852Hz', desc: '直感を大切にしたいとき、静かに内側を見つめたいときに', w: {}, goals: ['balance', 'focus'] },
+  { id: 't-963', type: 'tone', freq: 963, name: 'ひかりの音', hz: '963Hz', desc: '高く澄んだ響き。自分らしさを思い出す時間に', w: {}, goals: ['balance'] },
+  { id: 'n-pink', type: 'noise', noise: 'pink', name: 'やわらか雨音', hz: 'ピンクノイズ', desc: '雨音のような音。周りの音が気になるときや眠る前に', w: { sleep: 1, stress: 1 }, goals: ['sleep', 'focus'] },
+  { id: 'n-brown', type: 'noise', noise: 'brown', name: 'とおい波の音', hz: 'ブラウンノイズ', desc: '低く包みこむような音。考えごとが止まらない夜に', w: { sleep: 2, stress: 1 }, goals: ['sleep', 'relax'] },
+];
+const CAT_LABEL = { tone: '周波数', binaural: 'バイノーラル', noise: 'ノイズ' };
+const progById = id => PROGRAMS.find(p => p.id === id);
+
+// ===== 保存（この端末のブラウザ内にだけ保存される） =====
+const STORE_KEY = 'soundcare-v1';
+function loadData() {
+  let d = {};
+  try { d = JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch (e) { d = {}; }
+  return {
+    settings: Object.assign({ name: '', minutes: 15, noise: '', volume: 35 }, d.settings || {}),
+    favs: Array.isArray(d.favs) ? d.favs : [],
+    sessions: Array.isArray(d.sessions) ? d.sessions : [],
+    checks: Array.isArray(d.checks) ? d.checks : [],
+  };
+}
+let data = loadData();
+function save() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); }
+  catch (e) { toast('保存できなかったみたい…（プライベートモードかも）'); }
+}
+
+// ===== 小物 =====
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2200);
+}
+function fmtDate(ts) {
+  const d = new Date(ts);
+  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+function fmtTime(sec) {
+  sec = Math.max(0, Math.round(sec));
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+}
+const callName = () => data.settings.name ? `${esc(data.settings.name)}さん` : 'あなた';
+function moodOf(v) { return MOODS.find(m => m.v === v) || MOODS[2]; }
+
+// ===== 音のエンジン（Web Audio API） =====
+const Engine = {
+  ctx: null, master: null, nodes: [], buffers: {},
+  async ensure() {
+    if (!this.ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AC();
+    }
+    if (this.ctx.state !== 'running') await this.ctx.resume();
+  },
+  noiseBuffer(kind) {
+    if (this.buffers[kind]) return this.buffers[kind];
+    const ctx = this.ctx, len = ctx.sampleRate * 8;
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
+    let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0, last = 0, peak = 0;
+    for (let i = 0; i < len; i++) {
+      const w = Math.random() * 2 - 1;
+      if (kind === 'pink') {
+        b0 = 0.99886 * b0 + w * 0.0555179; b1 = 0.99332 * b1 + w * 0.0750759;
+        b2 = 0.96900 * b2 + w * 0.1538520; b3 = 0.86650 * b3 + w * 0.3104856;
+        b4 = 0.55000 * b4 + w * 0.5329522; b5 = -0.7616 * b5 - w * 0.0168980;
+        d[i] = b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362; b6 = w * 0.115926;
+      } else {
+        last = (last + 0.02 * w) / 1.02; d[i] = last;
+      }
+      peak = Math.max(peak, Math.abs(d[i]));
+    }
+    // ループのつなぎ目でプツッとならないよう端をなじませる
+    const fade = Math.floor(ctx.sampleRate * 0.05);
+    for (let i = 0; i < len; i++) {
+      d[i] /= peak;
+      if (i < fade) d[i] *= i / fade;
+      if (i > len - fade) d[i] *= (len - i) / fade;
+    }
+    return (this.buffers[kind] = buf);
+  },
+  addNoise(kind, level) {
+    const ctx = this.ctx;
+    const src = ctx.createBufferSource(); src.buffer = this.noiseBuffer(kind); src.loop = true;
+    const g = ctx.createGain(); g.gain.value = level;
+    src.connect(g).connect(this.master); src.start();
+    this.nodes.push(src);
+  },
+  addTone(freq, level) {
+    const ctx = this.ctx;
+    const osc = ctx.createOscillator(); osc.type = 'sine'; osc.frequency.value = freq;
+    const g = ctx.createGain(); g.gain.value = level;
+    // ゆっくりした音量のゆらぎ（約12秒周期）
+    const lfo = ctx.createOscillator(); lfo.frequency.value = 0.08;
+    const lfoGain = ctx.createGain(); lfoGain.gain.value = level * 0.25;
+    lfo.connect(lfoGain).connect(g.gain);
+    osc.connect(g).connect(this.master);
+    osc.start(); lfo.start();
+    this.nodes.push(osc, lfo);
+  },
+  addBinaural(carrier, beat, level) {
+    const ctx = this.ctx, merger = ctx.createChannelMerger(2);
+    [carrier - beat / 2, carrier + beat / 2].forEach((f, ch) => {
+      const osc = ctx.createOscillator(); osc.type = 'sine'; osc.frequency.value = f;
+      const g = ctx.createGain(); g.gain.value = level;
+      osc.connect(g).connect(merger, 0, ch); osc.start();
+      this.nodes.push(osc);
+    });
+    merger.connect(this.master);
+  },
+  async play(p, { volume, noise }) {
+    await this.ensure();
+    this.stopNow();
+    const ctx = this.ctx, t = ctx.currentTime;
+    this.master = ctx.createGain();
+    this.master.gain.setValueAtTime(0, t);
+    this.master.gain.linearRampToValueAtTime(volume, t + 4);
+    this.master.connect(ctx.destination);
+    if (p.type === 'tone') this.addTone(p.freq, 0.45);
+    if (p.type === 'binaural') this.addBinaural(p.carrier, p.beat, 0.4);
+    if (p.type === 'noise') this.addNoise(p.noise, 0.7);
+    if (noise && p.type !== 'noise') this.addNoise(noise, 0.16);
+  },
+  setVolume(v) {
+    if (!this.master) return;
+    const g = this.master.gain, t = this.ctx.currentTime;
+    g.cancelScheduledValues(t); g.setTargetAtTime(v, t, 0.15);
+  },
+  fadeOut(sec = 3) {
+    if (!this.master) return Promise.resolve();
+    const g = this.master.gain, t = this.ctx.currentTime;
+    g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(0, t + sec);
+    return new Promise(r => setTimeout(() => { this.stopNow(); r(); }, sec * 1000 + 50));
+  },
+  stopNow() {
+    this.nodes.forEach(n => { try { n.stop(); } catch (e) {} });
+    this.nodes = [];
+    if (this.master) { try { this.master.disconnect(); } catch (e) {} this.master = null; }
+  },
+};
+const volToGain = v => Math.pow(v / 100, 2) * 0.8;
+
+// ===== 画面切りかえ =====
+let tab = 'home';
+function showTab(name) {
+  tab = name;
+  document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
+  ['home', 'sound', 'log', 'settings'].forEach(v => $('#view-' + v).classList.toggle('hidden', v !== name));
+  render();
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+
+function render() {
+  $('#appName').textContent = APP.name;
+  document.title = APP.name;
+  const h = new Date().getHours();
+  const hello = h < 5 ? 'こんばんは' : h < 11 ? 'おはよう' : h < 18 ? 'こんにちは' : 'こんばんは';
+  $('#greet').innerHTML = `${hello}、${callName()} 🌷`;
+  if (tab === 'home') renderHome();
+  if (tab === 'sound') renderSound();
+  if (tab === 'log') renderLog();
+  if (tab === 'settings') renderSettings();
+}
+
+// ===== ホーム & セルフチェック =====
+const QUESTIONS = [
+  { key: 'mood', q: 'いまの気分はどう？', opts: MOODS.map(m => ({ v: m.v, l: `${m.e} ${m.t}` })) },
+  { key: 'fatigue', q: '体の疲れはどれくらい？', opts: [{ v: 1, l: '🌱 元気いっぱい' }, { v: 2, l: '🙂 ちょっとだけ' }, { v: 3, l: '😮‍💨 そこそこ疲れてる' }, { v: 4, l: '🥱 かなり疲れてる' }, { v: 5, l: '🫠 くたくた' }] },
+  { key: 'sleep', q: 'ゆうべはよく眠れた？', opts: [{ v: 1, l: '😴 ぐっすり' }, { v: 2, l: '🙂 まあまあ' }, { v: 3, l: '😐 浅かった' }, { v: 4, l: '😵 何度も起きた' }, { v: 5, l: '🌙 ほとんど眠れなかった' }] },
+  { key: 'stress', q: '緊張やストレスは？', opts: [{ v: 1, l: '☁️ ゆるゆる' }, { v: 2, l: '🙂 少しある' }, { v: 3, l: '😬 けっこうある' }, { v: 4, l: '😣 かなり張りつめてる' }, { v: 5, l: '💥 いっぱいいっぱい' }] },
+  { key: 'goal', q: 'このあと、どう過ごしたい？', opts: [{ v: 'sleep', l: '🌙 眠りたい' }, { v: 'relax', l: '🛁 ゆっくりしたい' }, { v: 'focus', l: '📚 集中したい' }, { v: 'energy', l: '☀️ 元気を出したい' }, { v: 'balance', l: '🌸 なんとなく整えたい' }] },
+];
+let check = null; // { step, answers } チェック中のみ
+
+function recommend(a) {
+  const need = { mood: 5 - a.mood, fatigue: a.fatigue - 1, sleep: a.sleep - 1, stress: a.stress - 1 };
+  const scored = PROGRAMS.map(p => {
+    let s = 0;
+    for (const k in p.w) s += p.w[k] * need[k];
+    if (p.goals.includes(a.goal)) s += a.goal === p.goals[0] ? 6 : 4;
+    if (p.id === 'b-beta' && need.fatigue >= 3) s -= 4; // くたくたの時に刺激強めは避ける
+    if (data.favs.includes(p.id)) s += 1;
+    return { p, s };
+  }).sort((x, y) => y.s - x.s);
+  return scored.slice(0, 3).map(x => x.p);
+}
+function checkMessage(a) {
+  const need = { mood: 5 - a.mood, fatigue: a.fatigue - 1, sleep: a.sleep - 1, stress: a.stress - 1 };
+  const top = Object.entries(need).sort((x, y) => y[1] - x[1])[0];
+  const n = callName();
+  if (top[1] <= 1) return `${n}、今日はわりと整ってるみたい✨ この調子をキープできるように、心地いい音でととのえ時間にしよう。`;
+  return {
+    mood: `気持ちが少し沈んでるんだね。そういう日があっても大丈夫だよ。まずは${n}が自分にやさしくできる時間をつくろう🌷`,
+    fatigue: `体がだいぶがんばってくれてるみたい。今日は「何もしない時間」も大事にしてね。力を抜けそうな音を選んだよ☁️`,
+    sleep: `眠りが浅かったんだね。寝不足だと何でもしんどく感じやすいから、${n}のペースでゆっくり休もう🌙`,
+    stress: `ずっと気を張ってたのかな。ここまでよくがんばったね。いったん肩の力を抜けるような音を選んでみたよ🫧`,
+  }[top[0]];
+}
+
+function renderHome() {
+  const el = $('#view-home');
+  if (check) return renderCheck(el);
+  const today = new Date().toDateString();
+  const todayChecks = data.checks.filter(c => new Date(c.at).toDateString() === today);
+  const last = data.checks[data.checks.length - 1];
+  const todaySessions = data.sessions.filter(s => new Date(s.at).toDateString() === today);
+  const favs = data.favs.map(progById).filter(Boolean).slice(0, 3);
+  const lastSession = data.sessions[data.sessions.length - 1];
+
+  let html = `<div class="card">
+    <div class="guide"><img src="icon.svg" alt=""><div class="bubble">${todayChecks.length ? `今日もチェックしてくれてありがとう💗 気分が変わったら、何回でもやり直してOKだよ。` : `${callName()}の今日のコンディション、${APP.guide}に教えて？ 5つの質問に答えるだけで、いまにぴったりの音を選ぶね。`}</div></div>
+    <button class="btn block" id="startCheck">${todayChecks.length ? 'もう一度セルフチェック' : 'セルフチェックをはじめる'}</button>
+  </div>`;
+
+  if (last && todayChecks.length) {
+    html += `<div class="card"><h3>前回のチェック（${fmtDate(last.at)}）</h3>
+      <p class="sub">${esc(checkMessage(last.answers))}</p>
+      <div class="plist">${recommend(last.answers).map(progCard).join('')}</div></div>`;
+  }
+
+  html += `<div class="card"><h3>今日のきろく</h3>
+    <div class="stats">
+      <div class="stat"><b>${todaySessions.length}</b><small>回</small></div>
+      <div class="stat"><b>${Math.round(todaySessions.reduce((t, s) => t + s.minutes, 0))}</b><small>分</small></div>
+      <div class="stat"><b>${data.sessions.length}</b><small>これまでの合計</small></div>
+    </div></div>`;
+
+  if (lastSession && progById(lastSession.programId)) {
+    html += `<div class="card"><h3>前回聴いた音</h3><div class="plist">${progCard(progById(lastSession.programId))}</div></div>`;
+  }
+  if (favs.length) html += `<div class="card"><h3>お気に入り</h3><div class="plist">${favs.map(progCard).join('')}</div></div>`;
+  if (APP.contactUrl) html += `<a class="btn ghost block" style="display:block;text-align:center;text-decoration:none;margin-bottom:14px" href="${esc(APP.contactUrl)}" target="_blank" rel="noopener">${esc(APP.contactLabel)}</a>`;
+
+  el.innerHTML = html;
+  $('#startCheck').onclick = () => { check = { step: 0, answers: {} }; renderHome(); window.scrollTo(0, 0); };
+  bindProgCards(el);
+}
+
+function renderCheck(el) {
+  if (check.step >= QUESTIONS.length) {
+    const a = check.answers, recs = recommend(a);
+    el.innerHTML = `<div class="card">
+      <div class="progress"><i style="width:100%"></i></div>
+      <div class="guide"><img src="icon.svg" alt=""><div class="bubble">${checkMessage(a)}</div></div>
+      <h3>いまの${callName()}におすすめの音</h3>
+      <div class="plist">${recs.map(progCard).join('')}</div>
+      <div class="row" style="margin-top:14px"><button class="btn soft grow" id="backHome">ホームにもどる</button></div>
+    </div>`;
+    bindProgCards(el);
+    $('#backHome').onclick = () => { check = null; renderHome(); };
+    return;
+  }
+  const Q = QUESTIONS[check.step];
+  el.innerHTML = `<div class="card">
+    <div class="progress"><i style="width:${(check.step / QUESTIONS.length) * 100}%"></i></div>
+    <p class="sub" style="margin:0">しつもん ${check.step + 1} / ${QUESTIONS.length}</p>
+    <p class="q">${Q.q}</p>
+    <div class="opts">${Q.opts.map(o => `<button class="opt" data-v="${o.v}">${o.l}</button>`).join('')}</div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn soft grow" id="prevQ">${check.step ? 'ひとつ戻る' : 'やめる'}</button>
+    </div>
+  </div>`;
+  el.querySelectorAll('.opt').forEach(b => b.onclick = () => {
+    const v = b.dataset.v;
+    check.answers[Q.key] = isNaN(v) ? v : Number(v);
+    check.step++;
+    if (check.step >= QUESTIONS.length) {
+      data.checks.push({ id: uid(), at: Date.now(), answers: check.answers });
+      data.checks = data.checks.slice(-200);
+      save();
+    }
+    renderHome();
+  });
+  $('#prevQ').onclick = () => { if (check.step) check.step--; else check = null; renderHome(); };
+}
+
+// ===== サウンド一覧 =====
+let soundFilter = 'all';
+function progCard(p) {
+  const fav = data.favs.includes(p.id);
+  return `<div class="prog" data-open="${p.id}" role="button" tabindex="0">
+    <div class="dot cat-${p.type}">${p.type === 'noise' ? '〜' : esc(p.hz.replace('Hz', ''))}</div>
+    <div class="grow"><div class="name">${esc(p.name)}</div><div class="desc">${esc(CAT_LABEL[p.type])}・${esc(p.hz)}｜${esc(p.desc)}</div></div>
+    <button class="star ${fav ? 'on' : ''}" data-fav="${p.id}" aria-label="お気に入り">★</button>
+  </div>`;
+}
+function bindProgCards(root) {
+  root.querySelectorAll('[data-open]').forEach(c => c.onclick = e => {
+    if (e.target.closest('[data-fav]')) return;
+    openPlayer(c.dataset.open);
+  });
+  root.querySelectorAll('[data-fav]').forEach(b => b.onclick = () => {
+    const id = b.dataset.fav, i = data.favs.indexOf(id);
+    if (i >= 0) data.favs.splice(i, 1); else data.favs.push(id);
+    save();
+    toast(i >= 0 ? 'お気に入りから外したよ' : 'お気に入りに追加したよ⭐');
+    render();
+  });
+}
+function renderSound() {
+  const filters = [['all', 'すべて'], ['fav', '⭐ お気に入り'], ['tone', '周波数'], ['binaural', 'バイノーラル'], ['noise', 'ノイズ']];
+  const list = PROGRAMS.filter(p => soundFilter === 'all' || (soundFilter === 'fav' ? data.favs.includes(p.id) : p.type === soundFilter));
+  $('#view-sound').innerHTML = `
+    <div class="card"><h2>サウンドをえらぶ</h2>
+      <p class="sub">タップすると再生画面がひらくよ。バイノーラルは<b>イヤホン・ヘッドホン</b>で聴いてね🎧</p>
+      <div class="chips">${filters.map(([k, l]) => `<button class="chip ${soundFilter === k ? 'on' : ''}" data-f="${k}">${l}</button>`).join('')}</div>
+    </div>
+    <div class="plist">${list.length ? list.map(progCard).join('') : `<div class="card empty">まだお気に入りがないよ。★をタップして追加してね</div>`}</div>`;
+  document.querySelectorAll('[data-f]').forEach(b => b.onclick = () => { soundFilter = b.dataset.f; renderSound(); });
+  bindProgCards($('#view-sound'));
+}
+
+// ===== 再生画面 =====
+let session = null; // { p, before, minutes, noise, startedAt, timer, playing }
+let wakeLock = null;
+function recentMood() {
+  const c = data.checks[data.checks.length - 1];
+  return c && Date.now() - c.at < 60 * 60 * 1000 ? c.answers.mood : 0;
+}
+function openPlayer(id) {
+  if (session && session.playing) {
+    if (session.p.id !== id) toast('いま再生中の音を止めてから選んでね');
+    $('#player').classList.add('show');
+    return;
+  }
+  const p = progById(id);
+  session = { p, before: recentMood(), minutes: data.settings.minutes, noise: p.type === 'noise' ? '' : data.settings.noise, playing: false };
+  renderPlayer();
+  $('#player').classList.add('show');
+}
+function renderPlayer() {
+  const s = session, p = s.p, el = $('#player');
+  const orbClass = `orb cat-${p.type} ${s.playing ? 'breath' : ''}`;
+  const remain = s.playing ? s.minutes * 60 - (Date.now() - s.startedAt) / 1000 : s.minutes * 60;
+  el.innerHTML = `<div class="app">
+    <div class="row"><button class="close" id="closePlayer" aria-label="とじる">✕</button><div class="grow"></div>
+      <button class="star ${data.favs.includes(p.id) ? 'on' : ''}" id="pFav" aria-label="お気に入り">★</button></div>
+    <div style="text-align:center;margin-top:6px">
+      <div style="font-size:12px;color:var(--muted)">${esc(CAT_LABEL[p.type])}・${esc(p.hz)}</div>
+      <div style="font-size:22px;font-weight:800;margin-top:2px">${esc(p.name)}</div>
+      <p class="sub" style="margin:6px 0 0">${esc(p.desc)}</p>
+    </div>
+    <div class="orb-wrap"><div class="${orbClass}"></div>
+      <div class="orb-text"><div class="time" id="remain">${fmtTime(remain)}</div><div class="cue" id="cue">${s.playing ? 'ゆっくり呼吸してね' : 'じゅんびOK？'}</div></div></div>
+
+    ${s.playing ? `
+      <div class="label">音量</div>
+      <input type="range" min="0" max="100" value="${data.settings.volume}" id="vol">
+      <button class="btn block" style="margin-top:18px" id="stopBtn">おわりにする</button>
+      <p class="note" style="margin-top:14px">画面をつけたまま聴いてね。スマホをロックすると音が止まることがあるよ。</p>
+    ` : `
+      <div class="label">いまの気分</div>
+      <div class="moods">${MOODS.map(m => `<button class="mood ${s.before === m.v ? 'on' : ''}" data-before="${m.v}">${m.e}<small>${m.t}</small></button>`).join('')}</div>
+      <div class="label">時間</div>
+      <div class="chips">${[5, 10, 15, 20, 30, 60].map(m => `<button class="chip ${s.minutes === m ? 'on' : ''}" data-min="${m}">${m}分</button>`).join('')}</div>
+      ${p.type !== 'noise' ? `<div class="label">うしろに流す音</div>
+      <div class="chips">${[['', 'なし'], ['pink', '雨音'], ['brown', '波の音']].map(([k, l]) => `<button class="chip ${s.noise === k ? 'on' : ''}" data-noise="${k}">${l}</button>`).join('')}</div>` : ''}
+      <div class="label">音量</div>
+      <input type="range" min="0" max="100" value="${data.settings.volume}" id="vol">
+      <button class="btn block" style="margin-top:18px" id="playBtn">▶ はじめる</button>
+      <p class="note" style="margin-top:14px">${p.type === 'binaural' ? '🎧 バイノーラルは左右で少しちがう音を流すので、イヤホンかヘッドホンで聴いてね。<br>' : ''}小さめの音量から始めて、心地いいところに合わせてね。運転中や機械の操作中には使わないでね。</p>
+    `}
+  </div>`;
+
+  $('#closePlayer').onclick = () => { el.classList.remove('show'); if (!s.playing) session = null; render(); };
+  $('#pFav').onclick = () => {
+    const i = data.favs.indexOf(p.id);
+    if (i >= 0) data.favs.splice(i, 1); else data.favs.push(p.id);
+    save(); renderPlayer();
+  };
+  const vol = $('#vol');
+  vol.oninput = () => { data.settings.volume = Number(vol.value); Engine.setVolume(volToGain(vol.value)); };
+  vol.onchange = save;
+  el.querySelectorAll('[data-before]').forEach(b => b.onclick = () => { s.before = Number(b.dataset.before); renderPlayer(); });
+  el.querySelectorAll('[data-min]').forEach(b => b.onclick = () => { s.minutes = Number(b.dataset.min); renderPlayer(); });
+  el.querySelectorAll('[data-noise]').forEach(b => b.onclick = () => { s.noise = b.dataset.noise; renderPlayer(); });
+  if ($('#playBtn')) $('#playBtn').onclick = startSession;
+  if ($('#stopBtn')) $('#stopBtn').onclick = () => endSession(false);
+}
+async function startSession() {
+  const s = session;
+  try {
+    await Engine.play(s.p, { volume: volToGain(data.settings.volume), noise: s.noise });
+  } catch (e) {
+    toast('音を再生できなかったみたい…'); return;
+  }
+  s.playing = true; s.startedAt = Date.now();
+  try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) { wakeLock = null; }
+  renderPlayer();
+  s.timer = setInterval(tick, 500);
+}
+function tick() {
+  const s = session; if (!s || !s.playing) return;
+  const elapsed = (Date.now() - s.startedAt) / 1000, remain = s.minutes * 60 - elapsed;
+  const r = $('#remain'); if (r) r.textContent = fmtTime(remain);
+  // 10秒周期の呼吸ガイド（アニメーションと同じ周期）
+  const c = $('#cue'); if (c) c.textContent = (elapsed % 10) < 4.5 ? 'すって…' : 'はいて…';
+  if (remain <= 0) endSession(true);
+}
+async function endSession(completed) {
+  const s = session; if (!s || !s.playing) return;
+  clearInterval(s.timer); s.playing = false;
+  const minutes = Math.min(s.minutes, (Date.now() - s.startedAt) / 60000);
+  try { if (wakeLock) await wakeLock.release(); } catch (e) {} wakeLock = null;
+  const btn = $('#stopBtn'); if (btn) { btn.disabled = true; btn.textContent = 'ゆっくり音を小さくしてるよ…'; }
+  await Engine.fadeOut(completed ? 5 : 2.5);
+  $('#player').classList.remove('show');
+  if (minutes >= 1) openRecord({ p: s.p, before: s.before, minutes, completed });
+  else toast('1分未満だったので、きろくはお休みしたよ');
+  session = null;
+  render();
+}
+
+// ===== 終わったあとの記録 =====
+function openRecord(r) {
+  let after = 0;
+  const draw = () => {
+    $('#sheet').innerHTML = `
+      <h2 style="margin:0 0 4px;font-size:17px">${r.completed ? 'おつかれさま🌷' : 'ここまで聴いてくれてありがとう'}</h2>
+      <p class="sub">${esc(r.p.name)}・${Math.round(r.minutes)}分。いまの感じを残しておこう。</p>
+      <div class="label">聴いたあとの気分</div>
+      <div class="moods">${MOODS.map(m => `<button class="mood ${after === m.v ? 'on' : ''}" data-after="${m.v}">${m.e}<small>${m.t}</small></button>`).join('')}</div>
+      <div class="label">ひとことメモ（なくてもOK）</div>
+      <textarea id="memo" placeholder="例：肩がゆるんだ感じ。眠くなってきた。">${esc(r.memo || '')}</textarea>
+      <div class="row" style="margin-top:16px">
+        <button class="btn soft grow" id="skipRec">記録しない</button>
+        <button class="btn grow" id="saveRec">記録する</button>
+      </div>`;
+    document.querySelectorAll('[data-after]').forEach(b => b.onclick = () => { r.memo = $('#memo').value; after = Number(b.dataset.after); draw(); });
+    $('#skipRec').onclick = closeModal;
+    $('#saveRec').onclick = () => {
+      data.sessions.push({ id: uid(), at: Date.now(), programId: r.p.id, programName: r.p.name, minutes: Math.round(r.minutes * 10) / 10, before: r.before || 0, after, memo: $('#memo').value.trim().slice(0, 500), completed: r.completed });
+      save(); closeModal();
+      toast(after && r.before && after > r.before ? '気分が少し上がったね✨ 記録したよ' : '記録したよ📖');
+      render();
+    };
+  };
+  draw();
+  $('#modal').classList.add('show');
+}
+function closeModal() { $('#modal').classList.remove('show'); }
+$('#modal').onclick = e => { if (e.target.id === 'modal') closeModal(); };
+
+// ===== きろく =====
+function chartSVG(list) {
+  const W = 320, H = 150, L = 26, R = 10, T = 10, B = 22;
+  const n = list.length, x = i => n === 1 ? (L + W - R) / 2 : L + (i * (W - L - R)) / (n - 1);
+  const y = v => T + (5 - v) * (H - T - B) / 4;
+  const line = (key, color, dash) => {
+    const pts = list.map((s, i) => s[key] ? [x(i), y(s[key])] : null).filter(Boolean);
+    if (!pts.length) return '';
+    return `<polyline fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" ${dash ? 'stroke-dasharray="5 5"' : ''} points="${pts.map(p => p.join(',')).join(' ')}"/>`
+      + pts.map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="3.5" fill="${color}"/>`).join('');
+  };
+  let grid = '';
+  for (let v = 1; v <= 5; v++) grid += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="#f1e4ea"/><text x="2" y="${y(v) + 5}" font-size="13">${MOODS[v - 1].e}</text>`;
+  const labels = list.map((s, i) => (n <= 7 || i % Math.ceil(n / 7) === 0) ? `<text x="${x(i)}" y="${H - 4}" font-size="9" fill="#a993a0" text-anchor="${n > 1 && i === n - 1 ? 'end' : n > 1 && i === 0 ? 'start' : 'middle'}">${new Date(s.at).getMonth() + 1}/${new Date(s.at).getDate()}</text>` : '').join('');
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}">${grid}${labels}${line('before', '#c9a4f5', true)}${line('after', '#ff87ac', false)}</svg>`;
+}
+function renderLog() {
+  const ss = data.sessions;
+  const el = $('#view-log');
+  if (!ss.length) {
+    el.innerHTML = `<div class="card"><h2>きろく</h2><div class="empty">まだきろくがないよ。<br>音を1分以上聴くと、ここに残るよ🌱</div></div>`;
+    return;
+  }
+  const total = ss.reduce((t, s) => t + s.minutes, 0);
+  const pairs = ss.filter(s => s.before && s.after);
+  const avgDiff = pairs.length ? pairs.reduce((t, s) => t + (s.after - s.before), 0) / pairs.length : null;
+  const count = {}; ss.forEach(s => count[s.programId] = (count[s.programId] || 0) + 1);
+  const top = Object.entries(count).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  // 続けている日数（今日 or 昨日から連続）
+  const days = new Set(ss.map(s => new Date(s.at).toDateString()));
+  let streak = 0; const d = new Date();
+  if (!days.has(d.toDateString())) d.setDate(d.getDate() - 1);
+  while (days.has(d.toDateString())) { streak++; d.setDate(d.getDate() - 1); }
+  // プログラム別の気分の変化
+  const effect = {};
+  pairs.forEach(s => { (effect[s.programId] = effect[s.programId] || []).push(s.after - s.before); });
+  const best = Object.entries(effect).filter(([, a]) => a.length >= 2).map(([id, a]) => [id, a.reduce((x, y) => x + y, 0) / a.length]).sort((a, b) => b[1] - a[1])[0];
+
+  const recent = ss.slice(-14);
+  el.innerHTML = `
+    <div class="card"><h2>きろく</h2>
+      <div class="stats" style="margin-top:10px">
+        <div class="stat"><b>${ss.length}</b><small>合計回数</small></div>
+        <div class="stat"><b>${Math.round(total)}</b><small>合計（分）</small></div>
+        <div class="stat"><b>${streak}</b><small>連続日数</small></div>
+      </div>
+    </div>
+    <div class="card"><h3>気分のうつりかわり（最近${recent.length}回）</h3>
+      ${chartSVG(recent)}
+      <div class="legend"><span><i style="background:#c9a4f5"></i>聴く前</span><span><i style="background:#ff87ac"></i>聴いたあと</span></div>
+      ${avgDiff !== null ? `<p class="sub" style="margin:10px 0 0">聴く前→あとの気分は、平均で <b style="color:var(--accent-dark)">${avgDiff >= 0 ? '+' : ''}${avgDiff.toFixed(1)}</b> 段階の変化だよ。</p>` : `<p class="sub" style="margin:10px 0 0">聴く前と後の気分を両方入れると、変化がわかるよ。</p>`}
+      ${best && best[1] > 0 && progById(best[0]) ? `<p class="sub" style="margin:6px 0 0">💡 ${callName()}と相性がよさそうなのは「${esc(progById(best[0]).name)}」みたい。</p>` : ''}
+    </div>
+    <div class="card"><h3>よく聴いている音</h3>
+      <div class="plist">${top.map(([id]) => progById(id)).filter(Boolean).map(progCard).join('')}</div>
+    </div>
+    <div class="card"><h3>りれき</h3>
+      ${ss.slice().reverse().slice(0, 50).map(s => `<div class="entry">
+        <div class="grow">
+          <div class="when">${fmtDate(s.at)}・${Math.round(s.minutes)}分${s.completed ? '' : '（途中まで）'}</div>
+          <div style="font-weight:700;font-size:14px;margin-top:2px">${esc(s.programName)}</div>
+          <div style="font-size:13px;margin-top:2px">${s.before ? moodOf(s.before).e : '・'} → ${s.after ? moodOf(s.after).e : '・'}</div>
+          ${s.memo ? `<div class="memo">${esc(s.memo)}</div>` : ''}
+        </div>
+        <button class="del" data-del="${s.id}" aria-label="削除">🗑</button>
+      </div>`).join('')}
+    </div>`;
+  bindProgCards(el);
+  el.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
+    if (!confirm('このきろくを消してもいい？')) return;
+    data.sessions = data.sessions.filter(s => s.id !== b.dataset.del);
+    save(); renderLog();
+  });
+}
+
+// ===== せってい =====
+function renderSettings() {
+  const st = data.settings;
+  $('#view-settings').innerHTML = `
+    <div class="card"><h2>せってい</h2>
+      <div class="label">よび名</div>
+      <input type="text" id="sName" maxlength="20" placeholder="例：はなこ" value="${esc(st.name)}">
+      <div class="label">いつもの時間</div>
+      <div class="chips">${[5, 10, 15, 20, 30, 60].map(m => `<button class="chip ${st.minutes === m ? 'on' : ''}" data-smin="${m}">${m}分</button>`).join('')}</div>
+      <div class="label">いつもの「うしろに流す音」</div>
+      <div class="chips">${[['', 'なし'], ['pink', '雨音'], ['brown', '波の音']].map(([k, l]) => `<button class="chip ${st.noise === k ? 'on' : ''}" data-snoise="${k}">${l}</button>`).join('')}</div>
+    </div>
+    <div class="card"><h3>ホーム画面に追加する</h3>
+      <p class="sub" style="margin:0">iPhone：Safariの共有ボタン → 「ホーム画面に追加」<br>Android：Chromeのメニュー → 「ホーム画面に追加」<br>アプリみたいに開けて、オフラインでも使えるよ。</p>
+    </div>
+    <div class="card"><h3>データ</h3>
+      <p class="sub">きろくはこの端末のブラウザの中にだけ保存されてるよ（どこにも送信されない）。機種変更のときはバックアップしてね。</p>
+      <div class="row wrap">
+        <button class="btn ghost grow" id="exportBtn">バックアップ保存</button>
+        <button class="btn ghost grow" id="importBtn">バックアップから戻す</button>
+      </div>
+      <input type="file" id="importFile" accept="application/json,.json" class="hidden">
+      <button class="btn danger block" style="margin-top:10px" id="wipeBtn">すべてのデータを消す</button>
+    </div>
+    <div class="card"><h3>このアプリについて</h3>
+      <p class="sub" style="margin:0">周波数の音・バイノーラルビート・ノイズで、リラックスや気分転換の時間をつくるためのアプリだよ。病気の診断・治療・予防を目的としたものではないよ。てんかんの持病がある人、ペースメーカーを使っている人、妊娠中の人、体調がすぐれない人は、使う前に医師に相談してね。</p>
+    </div>`;
+  const nm = $('#sName');
+  nm.onchange = () => { st.name = nm.value.trim(); save(); render(); toast('よび名を保存したよ'); };
+  document.querySelectorAll('[data-smin]').forEach(b => b.onclick = () => { st.minutes = Number(b.dataset.smin); save(); renderSettings(); });
+  document.querySelectorAll('[data-snoise]').forEach(b => b.onclick = () => { st.noise = b.dataset.snoise; save(); renderSettings(); });
+  $('#exportBtn').onclick = () => {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `soundcare-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+  $('#importBtn').onclick = () => $('#importFile').click();
+  $('#importFile').onchange = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try {
+      const d = JSON.parse(await f.text());
+      if (!d || !Array.isArray(d.sessions)) throw new Error('bad');
+      if (!confirm('いまのデータをバックアップの内容に置きかえるよ。いい？')) return;
+      localStorage.setItem(STORE_KEY, JSON.stringify(d));
+      data = loadData(); render(); toast('バックアップから戻したよ');
+    } catch (err) { toast('このファイルは読みこめなかったみたい'); }
+  };
+  $('#wipeBtn').onclick = () => {
+    if (!confirm('きろく・お気に入り・設定を全部消すよ。元に戻せないけど、いい？')) return;
+    try { localStorage.removeItem(STORE_KEY); } catch (e) {}
+    data = loadData(); render(); toast('データを消したよ');
+  };
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.matches('.prog')) openPlayer(e.target.dataset.open);
+});
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+render();
+</script>
+</body>
+</html>

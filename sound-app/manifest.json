@@ -1,0 +1,17 @@
+{
+  "name": "愛美のサウンドケア",
+  "short_name": "サウンドケア",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffe1ec",
+  "theme_color": "#ff92ae",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
