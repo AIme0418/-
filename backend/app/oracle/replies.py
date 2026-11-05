@@ -75,13 +75,9 @@ def detect_command(user_text: str) -> tuple[str, int | None] | None:
 
 
 def build_reply(kind: str, public_base_url: str, card_id: int | None = None, user_id: str = "") -> list[dict]:
-    if kind == "one":
+    if kind in REVEAL_KINDS:
         # カード裏面を見せて、ボタンを押してもらう（結果はボタンを押した瞬間に決まる）
-        return _one_intro(user_id, public_base_url)
-    elif kind == "three":
-        messages = [_three_oracle(deck.draw(3), public_base_url)]
-    elif kind in THEMES:
-        messages = [_theme_oracle(deck.draw(1)[0], kind, public_base_url)]
+        return _intro(kind, user_id, public_base_url)
     elif kind == "list":
         messages = [_card_list(public_base_url)]
     elif kind == "detail":
@@ -97,11 +93,22 @@ def build_reply(kind: str, public_base_url: str, card_id: int | None = None, use
     return messages
 
 
-# ---- ワンオラクルの演出（裏面 → カードを開く → 結果） ----
+# ---- カードを開く演出（裏面 → カードを開く → 結果） ----
+# ワンオラクル・スリーオラクル・恋愛・金運・癒しで共通。
+# カードはボタンを押した瞬間に決まり、同じボタンからは1回しか結果が出ない。
 
 ONE_INTRO_TEXT = (
     "✨ 天使と女神たちが、あなたへのメッセージを準備しています。\n\n"
     "ゆっくり深呼吸して、今のあなたの心に意識を向けてみてください。🌙"
+)
+THREE_INTRO_TEXT = (
+    "✨ 天使と女神たちが、あなたのための3枚のカードを準備しています。\n\n"
+    "ゆっくり深呼吸して、今のあなたの心に意識を向けてみてください。🌙\n"
+    "1枚ずつ、順番に開いていきましょう。"
+)
+THEME_INTRO_TEXT = (
+    "{icon} {label}について、天使と女神たちがあなたへのメッセージを準備しています。\n\n"
+    "ゆっくり深呼吸して、思い浮かぶ人や出来事に、そっと意識を向けてみてください。🌙"
 )
 REVEAL_TEXT = "✨ あなたに届いた光のメッセージは……"
 EXPIRED_TEXT = (
@@ -112,9 +119,38 @@ ALREADY_TEXT = "✨ このカードは、もう開かれています。\n新し�
 # 開いた直後の連打には返事をしない（これより後に押されたら、やさしく案内する）
 DOUBLE_TAP_SILENCE_SECONDS = 20
 
+# スリーオラクルの3枚の位置
+THREE_POSITIONS = ["過去・背景", "現在の状況", "未来へのヒント"]
+THREE_STEP_NAMES = ["1枚目", "2枚目", "3枚目"]
 
-def _one_intro(user_id: str, base_url: str) -> list[dict]:
-    data = sessions.create(user_id, "one")
+# 「もう一度引く」で送る言葉（リッチメニューと同じ言葉）
+AGAIN_WORD = {"one": "ワンオラクル", "three": "スリーオラクル", "love": "恋愛", "work": "金運", "healing": "癒し"}
+REVEAL_KINDS = set(AGAIN_WORD)
+
+
+def _intro(kind: str, user_id: str, base_url: str) -> list[dict]:
+    if kind == "three":
+        text = THREE_INTRO_TEXT
+    elif kind in THEMES:
+        text = THEME_INTRO_TEXT.format(**THEMES[kind])
+    else:
+        text = ONE_INTRO_TEXT
+    data = sessions.create(user_id, kind)
+    return [{"type": "text", "text": text}, _back_message(kind, data, base_url, step=1)]
+
+
+def _back_message(kind: str, data: str, base_url: str, step: int) -> dict:
+    """カード裏面＋「カードを開く」ボタン。"""
+    if kind == "three":
+        caption = f"✦ {THREE_STEP_NAMES[step - 1]}：{THREE_POSITIONS[step - 1]} ✦"
+        label = f"✨ {THREE_STEP_NAMES[step - 1]}を開く"
+    elif kind in THEMES:
+        caption = f"{THEMES[kind]['icon']} {THEMES[kind]['label']}"
+        label = "✨ カードを開く"
+    else:
+        caption = None
+        label = "✨ カードを開く"
+
     back = deck.ui_asset_url("oracle_back.jpg", base_url)
     if back:
         hero = {"type": "image", "url": back, "size": "full", "aspectRatio": "2:3", "aspectMode": "cover"}
@@ -127,6 +163,18 @@ def _one_intro(user_id: str, base_url: str) -> list[dict]:
             "background": _gradient(),
             "contents": [_text("✧ ✦ ✧", size="xl", color=GOLD, align="center")],
         }
+    footer_contents = []
+    if caption:
+        footer_contents.append(_text(caption, size="sm", color=GOLD, weight="bold", align="center"))
+    footer_contents.append(
+        {
+            "type": "button",
+            "style": "primary",
+            "color": "#8E5BC4",
+            "height": "md",
+            "action": {"type": "postback", "label": label, "data": data, "displayText": label},
+        }
+    )
     bubble = {
         "type": "bubble",
         "size": "mega",
@@ -134,31 +182,16 @@ def _one_intro(user_id: str, base_url: str) -> list[dict]:
         "footer": {
             "type": "box",
             "layout": "vertical",
+            "spacing": "md",
             "paddingAll": "14px",
             "background": _gradient(),
-            "contents": [
-                {
-                    "type": "button",
-                    "style": "primary",
-                    "color": "#8E5BC4",
-                    "height": "md",
-                    "action": {
-                        "type": "postback",
-                        "label": "✨ カードを開く",
-                        "data": data,
-                        "displayText": "✨ カードを開く",
-                    },
-                }
-            ],
+            "contents": footer_contents,
         },
     }
-    return [
-        {"type": "text", "text": ONE_INTRO_TEXT},
-        _flex("✨ カードが届きました。「カードを開く」を押してください", bubble),
-    ]
+    return _flex(f"✨ カードが届きました。「{label.replace('✨ ', '')}」を押してください", bubble)
 
 
-def _again_buttons() -> dict:
+def _again_buttons(kind: str) -> dict:
     return {
         "type": "box",
         "layout": "vertical",
@@ -170,7 +203,7 @@ def _again_buttons() -> dict:
                 "type": "button",
                 "style": "primary",
                 "color": "#8E5BC4",
-                "action": {"type": "message", "label": "🔮 もう一度引く", "text": "ワンオラクル"},
+                "action": {"type": "message", "label": "🔮 もう一度引く", "text": AGAIN_WORD[kind]},
             },
             {
                 "type": "button",
@@ -188,11 +221,38 @@ def _again_buttons() -> dict:
 
 def _one_reveal(card: dict, base_url: str) -> list[dict]:
     bubble = _card_bubble(card, base_url, label="ワンオラクル", main_text=card["message"])
-    bubble["footer"] = _again_buttons()
+    bubble["footer"] = _again_buttons("one")
     return [
         {"type": "text", "text": REVEAL_TEXT},
         _flex(f"ワンオラクル｜{card['name']}「{card['keyword']}」", bubble),
     ]
+
+
+def _theme_reveal(card: dict, kind: str, base_url: str) -> list[dict]:
+    msg = _theme_oracle(card, kind, base_url)
+    msg["contents"]["footer"] = _again_buttons(kind)
+    return [{"type": "text", "text": REVEAL_TEXT}, msg]
+
+
+def _three_reveal(card_ids: list[int], sid: str, base_url: str) -> list[dict]:
+    """スリーオラクルのstep枚目を開いたときの返信。"""
+    step = len(card_ids)
+    card = deck.get_card(card_ids[-1])
+    pos = THREE_POSITIONS[step - 1]
+    bubble = _card_bubble(card, base_url, label=f"{THREE_STEP_NAMES[step - 1]}：{pos}", main_text=card["message"])
+    messages = [
+        {"type": "text", "text": f"✨ {THREE_STEP_NAMES[step - 1]}「{pos}」のカードは……"},
+        _flex(f"{pos}｜{card['name']}「{card['keyword']}」", bubble),
+    ]
+    if step < 3:
+        data = sessions.next_step_data(sid, "three", step + 1, card_ids)
+        messages.append(_back_message("three", data, base_url, step=step + 1))
+    else:
+        cards = [deck.get_card(i) for i in card_ids]
+        summary = _summary_bubble(cards, base_url)
+        summary["footer"] = _again_buttons("three")
+        messages.append(_flex("✦ 3枚からの総合メッセージ ✦", summary))
+    return messages
 
 
 def build_postback_reply(user_id: str, data: str, base_url: str) -> list[dict] | None:
@@ -201,34 +261,43 @@ def build_postback_reply(user_id: str, data: str, base_url: str) -> list[dict] |
     action = params.get("oracle")
     if action == "menu":
         return None  # リッチメニューが開くだけ。メッセージは送らない
-    if action != "open" or params.get("kind") != "one":
+    kind = params.get("kind", "")
+    if action != "open" or kind not in REVEAL_KINDS:
         return None
 
     sid = params.get("sid", "")
     try:
         issued_at = int(params.get("ts", "0"))
+        step = int(params.get("step", "1"))
+        prior = [int(x) for x in params.get("prior", "").split(",") if x]
     except ValueError:
-        issued_at = 0
+        return [{"type": "text", "text": EXPIRED_TEXT, "quickReply": _again_quick_reply(kind)}]
+    max_step = 3 if kind == "three" else 1
+    if not 1 <= step <= max_step or len(prior) != step - 1:
+        return [{"type": "text", "text": EXPIRED_TEXT, "quickReply": _again_quick_reply(kind)}]
 
-    status, card_id = sessions.open_card(
-        user_id, sid, "one", issued_at, draw=lambda: deck.draw(1)[0]["id"]
-    )
+    def draw(exclude: set[int]) -> int:
+        return deck.draw_excluding(exclude)["id"]
+
+    status, card_ids = sessions.open_card(user_id, sid, kind, issued_at, draw, step=step, prior=prior)
     if status == "new":
-        return _one_reveal(deck.get_card(card_id), base_url)
+        if kind == "three":
+            return _three_reveal(card_ids, sid, base_url)
+        card = deck.get_card(card_ids[-1])
+        if kind in THEMES:
+            return _theme_reveal(card, kind, base_url)
+        return _one_reveal(card, base_url)
     if status == "already":
         ago = sessions.opened_seconds_ago(sid)
         if ago is not None and ago < DOUBLE_TAP_SILENCE_SECONDS:
             return None
-        return [{"type": "text", "text": ALREADY_TEXT, "quickReply": _again_quick_reply()}]
-    return [{"type": "text", "text": EXPIRED_TEXT, "quickReply": _again_quick_reply()}]
+        return [{"type": "text", "text": ALREADY_TEXT, "quickReply": _again_quick_reply(kind)}]
+    return [{"type": "text", "text": EXPIRED_TEXT, "quickReply": _again_quick_reply(kind)}]
 
 
-def _again_quick_reply() -> dict:
-    return {
-        "items": [
-            {"type": "action", "action": {"type": "message", "label": "🔮 もう一度引く", "text": "ワンオラクル"}}
-        ]
-    }
+def _again_quick_reply(kind: str = "one") -> dict:
+    word = AGAIN_WORD.get(kind, "ワンオラクル")
+    return {"items": [{"type": "action", "action": {"type": "message", "label": "🔮 もう一度引く", "text": word}}]}
 
 
 # ---- 各メニューの返信 ----
@@ -252,7 +321,7 @@ def _theme_oracle(card: dict, kind: str, base_url: str) -> dict:
 
 
 def _three_oracle(cards: list[dict], base_url: str) -> dict:
-    positions = ["過去", "現在", "未来"]
+    positions = THREE_POSITIONS
     bubbles = [
         _card_bubble(card, base_url, label=f"{pos}のカード", main_text=card["message"])
         for pos, card in zip(positions, cards)
@@ -267,9 +336,9 @@ def _three_oracle(cards: list[dict], base_url: str) -> dict:
 def three_summary_text(cards: list[dict]) -> str:
     past, present, future = cards
     return (
-        f"過去の「{past['keyword']}」は、今のあなたをつくってきた大切な土台です。\n\n"
-        f"現在は「{present['keyword']}」がテーマ。{present['name']}が、今のあなたにそっと寄り添っています。\n\n"
-        f"そして未来には「{future['keyword']}」の光が待っています。\n\n"
+        f"過去・背景にある「{past['keyword']}」は、今のあなたをつくってきた大切な土台です。\n\n"
+        f"現在の状況のテーマは「{present['keyword']}」。{present['name']}が、今のあなたにそっと寄り添っています。\n\n"
+        f"そして未来へのヒントは「{future['keyword']}」。その光が、これからの道を照らしてくれます。\n\n"
         + deck.pick_closing(THREE_CLOSINGS)
     )
 

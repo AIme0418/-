@@ -60,18 +60,14 @@ def test_replies_follow_line_limits(kind, base):
         if m["type"] == "flex":
             assert len(m["altText"]) <= 400
             assert len(json.dumps(m["contents"], ensure_ascii=False).encode()) < 30_000
-    if kind != "one":  # ワンオラクルは裏面のボタンで進むので、クイックリプライなし
+    if kind not in replies.REVEAL_KINDS:  # 裏面のボタンで進むメニューは、クイックリプライなし
         qr = messages[-1]["quickReply"]["items"]
         assert len(qr) <= 13
         assert all(len(i["action"]["label"]) <= 20 for i in qr)
 
 
-def test_three_oracle_has_past_present_future_and_summary():
-    msg = replies.build_reply("three", BASE)[0]
-    bubbles = msg["contents"]["contents"]
-    assert len(bubbles) == 4
-    labels = [b["body"]["contents"][0]["text"] for b in bubbles[:3]]
-    assert labels == ["✦ 過去のカード ✦", "✦ 現在のカード ✦", "✦ 未来のカード ✦"]
+def test_three_positions_follow_new_wording():
+    assert replies.THREE_POSITIONS == ["過去・背景", "現在の状況", "未来へのヒント"]
 
 
 def test_image_used_only_when_registered(tmp_path, monkeypatch):

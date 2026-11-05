@@ -32,6 +32,11 @@ def draw(count: int = 1) -> list[dict]:
     return _rng.sample(list(load_cards()), count)
 
 
+def draw_excluding(exclude: set[int]) -> dict:
+    """すでに出たカードを除いて1枚引く（スリーオラクルで重複させないため）。"""
+    return _rng.choice([c for c in load_cards() if c["id"] not in exclude])
+
+
 def card_image_filename(card_id: int) -> str | None:
     """画像ファイルが登録されていればファイル名（例: 07.jpg）を返す。"""
     for ext in IMAGE_EXTENSIONS:
