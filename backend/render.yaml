@@ -22,3 +22,5 @@ services:
         sync: false
       - key: DAILY_MESSAGE_LIMIT
         value: "300"
+      - key: PUBLIC_BASE_URL
+        value: https://healy-backend-1lw2.onrender.com

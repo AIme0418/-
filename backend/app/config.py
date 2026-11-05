@@ -22,6 +22,10 @@ class Settings(BaseSettings):
 
     daily_message_limit: int = 300
 
+    # このサーバーの公開URL（例: https://healy-backend-1lw2.onrender.com）。
+    # カード画像やカード一覧ページのリンクをLINEに送るために使う
+    public_base_url: str = ""
+
     # フロントエンドの公開URLをカンマ区切りで指定（例: https://healy-aimi.netlify.app）
     # 未設定の間は開発用に全許可（"*"）にしておく
     cors_allowed_origins: str = ""

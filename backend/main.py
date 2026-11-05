@@ -1,10 +1,21 @@
 import logging
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
-from app.routers import clients, dev_chat, healy, line_webhook, persona, public_chat, security
+from app.routers import (
+    clients,
+    dev_chat,
+    healy,
+    line_webhook,
+    oracle_pages,
+    persona,
+    public_chat,
+    security,
+)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -24,6 +35,12 @@ app.include_router(dev_chat.router)
 app.include_router(public_chat.router)
 app.include_router(security.router)
 app.include_router(clients.router)
+app.include_router(oracle_pages.router)
+
+# カード画像などの公開ファイル（backend/static/ 以下）
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+STATIC_DIR.mkdir(exist_ok=True)
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 @app.get("/")
