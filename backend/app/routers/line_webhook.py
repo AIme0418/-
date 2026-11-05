@@ -119,7 +119,7 @@ async def _handle_text_message(reply_token: str, user_id: str, user_text: str) -
     if command is not None:
         kind, card_id = command
         try:
-            messages = oracle.build_reply(kind, settings.public_base_url, card_id=card_id)
+            messages = oracle.build_reply(kind, settings.public_base_url, card_id=card_id, user_id=user_id)
         except Exception:
             logger.exception("Oracle reply failed")
             messages = [{"type": "text", "text": "ごめんなさい、カードをうまく引けませんでした。もう一度ボタンを押してみてくださいね。"}]
@@ -159,6 +159,17 @@ async def _handle_text_message(reply_token: str, user_id: str, user_text: str) -
     await _reply_to_line(reply_token, reply_text)
 
 
+async def _handle_postback(reply_token: str, user_id: str, data: str) -> None:
+    """カードの「開く」「メニューに戻る」ボタン。AIは使わない。"""
+    try:
+        messages = oracle.build_postback_reply(user_id, data, settings.public_base_url)
+    except Exception:
+        logger.exception("Oracle postback failed")
+        messages = [{"type": "text", "text": "ごめんなさい、カードをうまく開けませんでした。もう一度メニューから引いてみてくださいね。"}]
+    if messages:
+        await _reply_messages(reply_token, messages)
+
+
 @router.post("/webhook/line")
 async def line_webhook(
     request: Request,
@@ -181,6 +192,17 @@ async def line_webhook(
             user_id = event.get("source", {}).get("userId", "unknown")
             user_text = event["message"]["text"]
             background_tasks.add_task(_handle_text_message, reply_token, user_id, user_text)
+        elif event.get("type") == "postback":
+            skip_reason = _should_skip(event)
+            if skip_reason:
+                logger.info("Skipping LINE event (%s): %s", skip_reason, event.get("webhookEventId"))
+                continue
+            background_tasks.add_task(
+                _handle_postback,
+                event["replyToken"],
+                event.get("source", {}).get("userId", "unknown"),
+                event.get("postback", {}).get("data", ""),
+            )
 
     # LINEにはすぐ200を返し、実処理はバックグラウンドで行う
     return {"status": "ok"}

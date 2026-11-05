@@ -60,9 +60,10 @@ def test_replies_follow_line_limits(kind, base):
         if m["type"] == "flex":
             assert len(m["altText"]) <= 400
             assert len(json.dumps(m["contents"], ensure_ascii=False).encode()) < 30_000
-    qr = messages[-1]["quickReply"]["items"]
-    assert len(qr) <= 13
-    assert all(len(i["action"]["label"]) <= 20 for i in qr)
+    if kind != "one":  # ワンオラクルは裏面のボタンで進むので、クイックリプライなし
+        qr = messages[-1]["quickReply"]["items"]
+        assert len(qr) <= 13
+        assert all(len(i["action"]["label"]) <= 20 for i in qr)
 
 
 def test_three_oracle_has_past_present_future_and_summary():
@@ -102,7 +103,8 @@ def _patch_line(monkeypatch):
 def test_menu_word_goes_to_oracle_not_ai(monkeypatch):
     sent = _patch_line(monkeypatch)
     asyncio.run(line_webhook._handle_text_message("tok", "Uuser", "ワンオラクル"))
-    assert len(sent) == 1 and sent[0][0]["type"] == "flex"
+    assert len(sent) == 1
+    assert [m["type"] for m in sent[0]] == ["text", "flex"]
 
 
 def _event(event_id, text="ワンオラクル", redelivery=False, age_seconds=0):

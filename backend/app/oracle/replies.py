@@ -7,7 +7,7 @@ LINEの返信は1回につき最大5通。ここでは常に1〜2通に収めて
 import re
 import unicodedata
 
-from . import deck
+from . import deck, sessions
 
 # リッチメニューのボタンが送る言葉（＋よくある言い換え）
 COMMANDS = {
@@ -74,9 +74,10 @@ def detect_command(user_text: str) -> tuple[str, int | None] | None:
     return None
 
 
-def build_reply(kind: str, public_base_url: str, card_id: int | None = None) -> list[dict]:
+def build_reply(kind: str, public_base_url: str, card_id: int | None = None, user_id: str = "") -> list[dict]:
     if kind == "one":
-        messages = [_one_oracle(deck.draw(1)[0], public_base_url)]
+        # カード裏面を見せて、ボタンを押してもらう（結果はボタンを押した瞬間に決まる）
+        return _one_intro(user_id, public_base_url)
     elif kind == "three":
         messages = [_three_oracle(deck.draw(3), public_base_url)]
     elif kind in THEMES:
@@ -94,6 +95,140 @@ def build_reply(kind: str, public_base_url: str, card_id: int | None = None) -> 
 
     messages[-1]["quickReply"] = QUICK_REPLY
     return messages
+
+
+# ---- ワンオラクルの演出（裏面 → カードを開く → 結果） ----
+
+ONE_INTRO_TEXT = (
+    "✨ 天使と女神たちが、あなたへのメッセージを準備しています。\n\n"
+    "ゆっくり深呼吸して、今のあなたの心に意識を向けてみてください。🌙"
+)
+REVEAL_TEXT = "✨ あなたに届いた光のメッセージは……"
+EXPIRED_TEXT = (
+    "🌙 このカードは時間がたって、そっと閉じてしまいました。\n"
+    "もう一度引くときは、下のボタンからどうぞ。"
+)
+ALREADY_TEXT = "✨ このカードは、もう開かれています。\n新しく引くときは「🔮 もう一度引く」を押してくださいね。"
+# 開いた直後の連打には返事をしない（これより後に押されたら、やさしく案内する）
+DOUBLE_TAP_SILENCE_SECONDS = 20
+
+
+def _one_intro(user_id: str, base_url: str) -> list[dict]:
+    data = sessions.create(user_id, "one")
+    back = deck.ui_asset_url("oracle_back.jpg", base_url)
+    if back:
+        hero = {"type": "image", "url": back, "size": "full", "aspectRatio": "2:3", "aspectMode": "cover"}
+    else:
+        hero = {
+            "type": "box",
+            "layout": "vertical",
+            "height": "220px",
+            "justifyContent": "center",
+            "background": _gradient(),
+            "contents": [_text("✧ ✦ ✧", size="xl", color=GOLD, align="center")],
+        }
+    bubble = {
+        "type": "bubble",
+        "size": "mega",
+        "hero": hero,
+        "footer": {
+            "type": "box",
+            "layout": "vertical",
+            "paddingAll": "14px",
+            "background": _gradient(),
+            "contents": [
+                {
+                    "type": "button",
+                    "style": "primary",
+                    "color": "#8E5BC4",
+                    "height": "md",
+                    "action": {
+                        "type": "postback",
+                        "label": "✨ カードを開く",
+                        "data": data,
+                        "displayText": "✨ カードを開く",
+                    },
+                }
+            ],
+        },
+    }
+    return [
+        {"type": "text", "text": ONE_INTRO_TEXT},
+        _flex("✨ カードが届きました。「カードを開く」を押してください", bubble),
+    ]
+
+
+def _again_buttons() -> dict:
+    return {
+        "type": "box",
+        "layout": "vertical",
+        "spacing": "sm",
+        "paddingAll": "14px",
+        "backgroundColor": "#F9E1EF",
+        "contents": [
+            {
+                "type": "button",
+                "style": "primary",
+                "color": "#8E5BC4",
+                "action": {"type": "message", "label": "🔮 もう一度引く", "text": "ワンオラクル"},
+            },
+            {
+                "type": "button",
+                "style": "secondary",
+                "action": {
+                    "type": "postback",
+                    "label": "💜 メニューに戻る",
+                    "data": "oracle=menu",
+                    "inputOption": "openRichMenu",
+                },
+            },
+        ],
+    }
+
+
+def _one_reveal(card: dict, base_url: str) -> list[dict]:
+    bubble = _card_bubble(card, base_url, label="ワンオラクル", main_text=card["message"])
+    bubble["footer"] = _again_buttons()
+    return [
+        {"type": "text", "text": REVEAL_TEXT},
+        _flex(f"ワンオラクル｜{card['name']}「{card['keyword']}」", bubble),
+    ]
+
+
+def build_postback_reply(user_id: str, data: str, base_url: str) -> list[dict] | None:
+    """ボタン（postback）が押されたときの返信。返信しないときはNone。"""
+    params = sessions.parse(data)
+    action = params.get("oracle")
+    if action == "menu":
+        return None  # リッチメニューが開くだけ。メッセージは送らない
+    if action != "open" or params.get("kind") != "one":
+        return None
+
+    sid = params.get("sid", "")
+    try:
+        issued_at = int(params.get("ts", "0"))
+    except ValueError:
+        issued_at = 0
+
+    status, card_id = sessions.open_card(
+        user_id, sid, "one", issued_at, draw=lambda: deck.draw(1)[0]["id"]
+    )
+    if status == "new":
+        return _one_reveal(deck.get_card(card_id), base_url)
+    if status == "already":
+        ago = sessions.opened_seconds_ago(sid)
+        if ago is not None and ago < DOUBLE_TAP_SILENCE_SECONDS:
+            return None
+        return [{"type": "text", "text": ALREADY_TEXT, "quickReply": _again_quick_reply()}]
+    return [{"type": "text", "text": EXPIRED_TEXT, "quickReply": _again_quick_reply()}]
+
+
+def _again_quick_reply() -> dict:
+    return {
+        "items": [
+            {"type": "action", "action": {"type": "message", "label": "🔮 もう一度引く", "text": "ワンオラクル"}}
+        ]
+    }
 
 
 # ---- 各メニューの返信 ----
@@ -222,6 +357,11 @@ def _card_bubble(card: dict, base_url: str, label: str, main_text: str, sub_text
         _ornament(),
         _text(main_text, size="sm", color=DEEP_PURPLE, margin="md"),
     ]
+    if card.get("angel_word"):
+        body_contents += [
+            _text("― 天使からのひとこと ―", size="xxs", color=GOLD, align="center", margin="xl"),
+            _text(card["angel_word"], size="sm", color=PINK, weight="bold", align="center", margin="sm"),
+        ]
     if sub_text:
         body_contents += [
             _text("― カードの基本メッセージ ―", size="xxs", color=GOLD, align="center", margin="xl"),
