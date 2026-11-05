@@ -47,7 +47,7 @@ def test_open_reveals_one_card_with_again_and_menu_buttons():
     assert msgs[0]["text"] == replies.REVEAL_TEXT
     bubble = msgs[1]["contents"]
     labels = [b["action"]["label"] for b in bubble["footer"]["contents"]]
-    assert labels == ["🔮 もう一度引く", "💜 メニューに戻る"]
+    assert labels == ["🔮 もう一度引く", "💜 メニューに戻る", "🎵 波動の音でひと休み"]
     assert bubble["footer"]["contents"][0]["action"]["text"] == "ワンオラクル"
     assert bubble["footer"]["contents"][1]["action"]["inputOption"] == "openRichMenu"
 
@@ -168,7 +168,7 @@ def test_three_oracle_opens_one_card_at_a_time_without_repeats():
         assert m3[0]["text"] == "✨ 3枚目「未来へのヒント」のカードは……"
         assert m3[-1]["altText"] == "✦ 3枚からの総合メッセージ ✦"
         labels = [b["action"]["label"] for b in m3[-1]["contents"]["footer"]["contents"]]
-        assert labels == ["🔮 もう一度引く", "💜 メニューに戻る"]
+        assert labels == ["🔮 もう一度引く", "💜 メニューに戻る", "🎵 波動の音でひと休み"]
         assert m3[-1]["contents"]["footer"]["contents"][0]["action"]["text"] == "スリーオラクル"
 
         (s,) = sessions._sessions.values()
@@ -226,3 +226,25 @@ def test_list_and_card_number_are_unchanged():
     assert replies.build_reply("list", BASE)[0]["type"] == "flex"
     detail = replies.build_reply("detail", BASE, card_id=7)
     assert "守護の翼" in detail[0]["altText"]
+
+
+# ---- 波動の音 ----
+
+
+@pytest.mark.parametrize("word", ["波動の音", "波動", "サウンド"])
+def test_sound_word_opens_sound_menu(word):
+    assert replies.detect_command(word) == ("sound", None)
+    (msg,) = replies.build_reply("sound", BASE)
+    button = msg["contents"]["footer"]["contents"][0]["action"]
+    assert button == {"type": "uri", "label": "🎵 波動の音を聴く", "uri": f"{BASE}/sound/"}
+    assert len(msg["quickReply"]["items"]) <= 13
+
+
+def test_sound_page_is_served_with_lumiel_name():
+    from main import app
+
+    client = TestClient(app)
+    r = client.get("/sound/")
+    assert r.status_code == 200 and "ルミエル 波動の音" in r.text and "愛美" not in r.text
+    for path in ("/sound/sw.js", "/sound/manifest.json", "/sound/icon.png"):
+        assert client.get(path).status_code == 200

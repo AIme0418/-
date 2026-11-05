@@ -17,6 +17,7 @@ COMMANDS = {
     "work": {"金運", "仕事・金運", "仕事運"},
     "healing": {"癒し", "心の癒し"},
     "list": {"カード一覧", "一覧"},
+    "sound": {"波動の音", "波動", "サウンド", "ヒーリング音", "周波数"},
 }
 
 CARD_DETAIL_PATTERN = re.compile(r"^(?:カード|No\.?|NO\.?|no\.?)(\d{1,2})$")
@@ -45,6 +46,7 @@ QUICK_REPLY = {
             ("💰 金運", "金運"),
             ("🕊 癒し", "癒し"),
             ("📖 カード一覧", "カード一覧"),
+            ("🎵 波動の音", "波動の音"),
         ]
     ]
 }
@@ -80,6 +82,8 @@ def build_reply(kind: str, public_base_url: str, card_id: int | None = None, use
         return _intro(kind, user_id, public_base_url)
     elif kind == "list":
         messages = [_card_list(public_base_url)]
+    elif kind == "sound":
+        messages = [_sound_menu(public_base_url)]
     elif kind == "detail":
         card = deck.get_card(card_id) if card_id else None
         if card:
@@ -191,8 +195,8 @@ def _back_message(kind: str, data: str, base_url: str, step: int) -> dict:
     return _flex(f"✨ カードが届きました。「{label.replace('✨ ', '')}」を押してください", bubble)
 
 
-def _again_buttons(kind: str) -> dict:
-    return {
+def _again_buttons(kind: str, base_url: str = "") -> dict:
+    box = {
         "type": "box",
         "layout": "vertical",
         "spacing": "sm",
@@ -217,11 +221,70 @@ def _again_buttons(kind: str) -> dict:
             },
         ],
     }
+    sound = sound_url(base_url)
+    if sound:
+        box["contents"].append(
+            {
+                "type": "button",
+                "style": "link",
+                "height": "sm",
+                "color": "#8E5BC4",
+                "action": {"type": "uri", "label": "🎵 波動の音でひと休み", "uri": sound},
+            }
+        )
+    return box
+
+
+def sound_url(base_url: str) -> str | None:
+    if not base_url.startswith("https://"):
+        return None
+    return f"{base_url.rstrip('/')}/sound/"
+
+
+SOUND_TEXT = (
+    "周波数の音や、雨音・波の音で、心と体がゆるむ時間をつくるページです。\n"
+    "5つの質問に答えると、今のあなたに合う音を選びます。"
+)
+SOUND_NOTE = "※リラックスのための音で、病気の診断や治療を目的としたものではありません。イヤホンで、小さめの音量からどうぞ。"
+
+
+def _sound_menu(base_url: str) -> dict:
+    url = sound_url(base_url)
+    if not url:
+        return {"type": "text", "text": "🎵 波動の音は、ただいま準備中です。もう少しお待ちくださいね。"}
+    bubble = {
+        "type": "bubble",
+        "size": "mega",
+        "hero": _emblem_hero(base_url),
+        "body": _body(
+            [
+                _text("🎵 波動の音 🎵", size="lg", color=DEEP_PURPLE, weight="bold", align="center"),
+                _text("174Hz〜963Hzの周波数・自然の音", size="xs", color=GOLD, align="center", margin="sm"),
+                _ornament(),
+                _text(SOUND_TEXT, size="sm", color=DEEP_PURPLE, margin="md"),
+                _text(SOUND_NOTE, size="xxs", color=SOFT_TEXT, margin="lg"),
+            ]
+        ),
+        "footer": {
+            "type": "box",
+            "layout": "vertical",
+            "backgroundColor": "#F9E1EF",
+            "contents": [
+                {
+                    "type": "button",
+                    "style": "primary",
+                    "color": "#8E5BC4",
+                    "action": {"type": "uri", "label": "🎵 波動の音を聴く", "uri": url},
+                }
+            ],
+        },
+    }
+    return _flex("🎵 波動の音｜周波数の音でリラックス", bubble)
 
 
 def _one_reveal(card: dict, base_url: str) -> list[dict]:
     bubble = _card_bubble(card, base_url, label="ワンオラクル", main_text=card["message"])
-    bubble["footer"] = _again_buttons("one")
+    bubble["footer"] = _again_buttons("one", base_url)
     return [
         {"type": "text", "text": REVEAL_TEXT},
         _flex(f"ワンオラクル｜{card['name']}「{card['keyword']}」", bubble),
@@ -230,7 +293,7 @@ def _one_reveal(card: dict, base_url: str) -> list[dict]:
 
 def _theme_reveal(card: dict, kind: str, base_url: str) -> list[dict]:
     msg = _theme_oracle(card, kind, base_url)
-    msg["contents"]["footer"] = _again_buttons(kind)
+    msg["contents"]["footer"] = _again_buttons(kind, base_url)
     return [{"type": "text", "text": REVEAL_TEXT}, msg]
 
 
@@ -250,7 +313,7 @@ def _three_reveal(card_ids: list[int], sid: str, base_url: str) -> list[dict]:
     else:
         cards = [deck.get_card(i) for i in card_ids]
         summary = _summary_bubble(cards, base_url)
-        summary["footer"] = _again_buttons("three")
+        summary["footer"] = _again_buttons("three", base_url)
         messages.append(_flex("✦ 3枚からの総合メッセージ ✦", summary))
     return messages
 

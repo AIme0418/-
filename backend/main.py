@@ -40,6 +40,8 @@ app.include_router(oracle_pages.router)
 # カード画像などの公開ファイル（backend/static/ 以下）
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 STATIC_DIR.mkdir(exist_ok=True)
+# 波動の音（スマホ向けの音のページ）。/sound/ で開く
+app.mount("/sound", StaticFiles(directory=STATIC_DIR / "sound", html=True), name="sound")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 

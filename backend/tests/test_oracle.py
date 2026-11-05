@@ -51,7 +51,7 @@ def test_card_number_and_normal_chat():
     assert replies.detect_command("こんにちは") is None
 
 
-@pytest.mark.parametrize("kind", ["one", "three", "love", "work", "healing", "list"])
+@pytest.mark.parametrize("kind", ["one", "three", "love", "work", "healing", "list", "sound"])
 @pytest.mark.parametrize("base", [BASE, ""])
 def test_replies_follow_line_limits(kind, base):
     messages = replies.build_reply(kind, base)

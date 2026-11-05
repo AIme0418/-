@@ -1,0 +1,17 @@
+{
+  "name": "ルミエル 波動の音",
+  "short_name": "波動の音",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#efe3fc",
+  "theme_color": "#9a63d1",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "400x400",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
