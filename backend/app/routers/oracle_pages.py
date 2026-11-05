@@ -17,8 +17,8 @@ def _card_html(card: dict) -> str:
         visual = f'<img src="/static/cards/{esc(image)}" alt="{esc(card["name"])}" loading="lazy">'
     else:
         visual = (
-            '<div class="ph"><span class="st">✧ ✦ ✧</span>'
-            '<span class="nm">画像準備中</span></div>'
+            '<div class="ph"><img src="/static/ui/card_back.jpg" alt="" loading="lazy">'
+            f'<span class="tag">No.{card["id"]:02d}</span></div>'
         )
     return f"""
 <details class="card">
@@ -42,33 +42,37 @@ PAGE_TEMPLATE = """<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>カード一覧｜ルミエル 天使と女神のオラクル</title>
 <style>
-:root{--bg:#fbf7ff;--ink:#4b3a63;--soft:#6c6080;--gold:#b08a2e;--pink:#d9739b;--line:#eadff5}
+:root{--ink:#5a2d86;--soft:#5e4a78;--gold:#a9791c;--goldl:#e2c06a;--pink:#c4508f}
 *{box-sizing:border-box}
-body{margin:0;background:linear-gradient(160deg,#efe3fb,#fff8ea 50%,#fde4ee);background-attachment:fixed;
- color:var(--ink);font-family:"Hiragino Mincho ProN","Yu Mincho",serif;line-height:1.8}
-header{text-align:center;padding:32px 16px 12px}
-header h1{font-size:1.35rem;margin:0}
-header p{color:var(--gold);margin:4px 0 0;font-size:.9rem;letter-spacing:.1em}
-.hint{font-size:.8rem;color:var(--soft);text-align:center;margin:8px 16px 20px}
+body{margin:0;color:var(--ink);font-family:"Hiragino Mincho ProN","Yu Mincho",serif;line-height:1.8;
+ background:#efe3fb url(/static/ui/bg.jpg) center/cover fixed}
+body::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.15),rgba(250,240,255,.55));z-index:-1}
+header{text-align:center;padding:24px 16px 8px}
+header img{width:132px;height:132px;filter:drop-shadow(0 4px 14px rgba(120,60,170,.35))}
+header p{color:var(--ink);margin:6px auto 0;font-size:.9rem;letter-spacing:.15em;font-weight:bold;
+ background:rgba(255,255,255,.7);display:inline-block;padding:2px 16px;border-radius:999px;border:1px solid var(--goldl)}
+.hint{font-size:.8rem;color:var(--soft);text-align:center;margin:10px 16px 18px}
 .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;padding:0 16px 40px;max-width:900px;margin:0 auto}
 @media(min-width:640px){.grid{grid-template-columns:repeat(4,1fr)}}
-.card{background:rgba(255,255,255,.75);border:1px solid #e3cf9a;border-radius:14px;overflow:hidden;
- box-shadow:0 4px 14px rgba(150,110,180,.15)}
+.card{background:linear-gradient(160deg,#fbf6ff,#fff 50%,#fdf0f7);border:2px solid var(--goldl);border-radius:16px;overflow:hidden;
+ box-shadow:0 0 0 3px rgba(255,255,255,.6),0 6px 18px rgba(120,60,170,.25)}
 .card[open]{grid-column:1/-1}
 summary{list-style:none;cursor:pointer}
 summary::-webkit-details-marker{display:none}
-.visual img,.ph{display:block;width:100%;aspect-ratio:2/3;object-fit:cover}
+.visual{position:relative}
+.visual img{display:block;width:100%;aspect-ratio:2/3;object-fit:cover}
 .card[open] .visual{max-width:320px;margin:0 auto}
-.ph{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px;text-align:center;
- background:linear-gradient(135deg,#e8d9f7,#fff6e0 50%,#fadce8)}
-.ph .st{color:var(--gold)}.ph .no{color:var(--gold);font-weight:bold;font-size:.8rem}.ph .nm{font-weight:bold;font-size:.85rem}
+.ph{position:relative}
+.ph::after{content:"";position:absolute;inset:6px;border:1.5px solid var(--goldl);border-radius:10px;pointer-events:none}
+.tag{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);background:rgba(255,255,255,.85);color:var(--gold);
+ font-weight:bold;font-size:.75rem;padding:0 10px;border-radius:999px;border:1px solid var(--goldl)}
 .cap{padding:8px 10px 12px;text-align:center;display:flex;flex-direction:column}
-.num{color:var(--gold);font-size:.72rem}.name{font-weight:bold;font-size:.85rem}.kw{color:var(--pink);font-size:.8rem}
-.detail{padding:4px 18px 18px;border-top:1px solid var(--line);font-size:.92rem}
+.num{color:var(--gold);font-size:.72rem}.name{font-weight:bold;font-size:.85rem}.kw{color:var(--pink);font-size:.8rem;font-weight:bold}
+.detail{padding:4px 18px 18px;border-top:1px solid var(--goldl);font-size:.92rem}
 .detail h3{font-size:.85rem;color:var(--gold);margin:14px 0 2px}
 .detail p{margin:4px 0}
 </style></head><body>
-<header><h1>✦ ルミエル ✦</h1><p>天使と女神のオラクル　全44枚</p></header>
+<header><img src="/static/ui/emblem.png" alt="ルミエル 天使と女神のオラクル"><br><p>✦ 全44枚のカード ✦</p></header>
 <p class="hint">カードをタップすると、くわしいメッセージが開きます</p>
 <main class="grid">__CARDS__</main>
 </body></html>"""

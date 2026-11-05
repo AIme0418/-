@@ -27,12 +27,13 @@ THEMES = {
     "healing": {"label": "心の癒し", "field": "healing", "icon": "🕊"},
 }
 
-# 色（ラベンダー・ピンク・ゴールド）
-LAVENDER_BG = "#F7F1FC"
-DEEP_PURPLE = "#4B3A63"
-GOLD = "#B08A2E"
-PINK = "#D9739B"
-SOFT_TEXT = "#5E5470"
+# 色（リッチメニュー・ロゴに合わせた、紫・ラベンダー・ピンク・ゴールド）
+DEEP_PURPLE = "#5A2D86"
+GOLD = "#A9791C"
+GOLD_LIGHT = "#E2C06A"
+PINK = "#C4508F"
+SOFT_TEXT = "#5E4A78"
+FRAME_WHITE = "#FFFFFFD9"
 
 QUICK_REPLY = {
     "items": [
@@ -121,7 +122,7 @@ def _three_oracle(cards: list[dict], base_url: str) -> dict:
         _card_bubble(card, base_url, label=f"{pos}のカード", main_text=card["message"])
         for pos, card in zip(positions, cards)
     ]
-    bubbles.append(_summary_bubble(cards))
+    bubbles.append(_summary_bubble(cards, base_url))
     alt = "スリーオラクル｜" + "／".join(
         f"{pos}:{c['name']}" for pos, c in zip(positions, cards)
     )
@@ -138,29 +139,35 @@ def three_summary_text(cards: list[dict]) -> str:
     )
 
 
-def _summary_bubble(cards: list[dict]) -> dict:
-    return {
+def _summary_bubble(cards: list[dict], base_url: str) -> dict:
+    bubble = {
         "type": "bubble",
         "size": "mega",
-        "body": {
-            "type": "box",
-            "layout": "vertical",
-            "spacing": "md",
-            "paddingAll": "20px",
-            "background": _gradient(),
-            "contents": [
+        "body": _body(
+            [
                 _text("✦ 3枚からの総合メッセージ ✦", size="sm", color=GOLD, weight="bold", align="center"),
-                _text(
-                    "　→　".join(c["keyword"] for c in cards),
-                    size="sm",
-                    color=PINK,
-                    weight="bold",
-                    align="center",
-                ),
-                {"type": "separator", "color": GOLD, "margin": "md"},
+                _text("　→　".join(c["keyword"] for c in cards), size="sm", color=PINK, weight="bold", align="center", margin="md"),
+                _ornament(),
                 _text(three_summary_text(cards), size="sm", color=DEEP_PURPLE, margin="md"),
-            ],
-        },
+            ]
+        ),
+    }
+    hero = _emblem_hero(base_url)
+    if hero:
+        bubble["hero"] = hero
+    return bubble
+
+
+def _emblem_hero(base_url: str) -> dict | None:
+    emblem = deck.ui_asset_url("emblem.png", base_url)
+    if not emblem:
+        return None
+    return {
+        "type": "box",
+        "layout": "vertical",
+        "paddingAll": "16px",
+        "background": _gradient(),
+        "contents": [{"type": "image", "url": emblem, "size": "lg", "aspectRatio": "1:1", "aspectMode": "fit"}],
     }
 
 
@@ -170,26 +177,24 @@ def _card_list(base_url: str) -> dict:
         bubble = {
             "type": "bubble",
             "size": "mega",
-            "body": {
-                "type": "box",
-                "layout": "vertical",
-                "spacing": "md",
-                "paddingAll": "20px",
-                "background": _gradient(),
-                "contents": [
+            "hero": _emblem_hero(base_url),
+            "body": _body(
+                [
                     _text("✦ カード一覧 ✦", size="lg", color=DEEP_PURPLE, weight="bold", align="center"),
-                    _text("光の女神と天使たち 全44枚", size="sm", color=GOLD, align="center"),
-                    _text(hint, size="xs", color=SOFT_TEXT, margin="lg"),
-                ],
-            },
+                    _text("光の女神と天使たち　全44枚", size="sm", color=GOLD, align="center"),
+                    _ornament(),
+                    _text(hint, size="xs", color=SOFT_TEXT, margin="md"),
+                ]
+            ),
             "footer": {
                 "type": "box",
                 "layout": "vertical",
+                "backgroundColor": "#F9E1EF",
                 "contents": [
                     {
                         "type": "button",
                         "style": "primary",
-                        "color": "#A98BC9",
+                        "color": "#8E5BC4",
                         "action": {
                             "type": "uri",
                             "label": "44枚のカードを見る",
@@ -214,35 +219,74 @@ def _card_bubble(card: dict, base_url: str, label: str, main_text: str, sub_text
         _text(f"✦ {label} ✦", size="xs", color=GOLD, weight="bold", align="center"),
         _text(card["name"], size="lg", color=DEEP_PURPLE, weight="bold", align="center", margin="sm"),
         _text(f"「{card['keyword']}」", size="md", color=PINK, weight="bold", align="center"),
-        {"type": "separator", "color": GOLD, "margin": "lg"},
-        _text(main_text, size="sm", color=DEEP_PURPLE, margin="lg"),
+        _ornament(),
+        _text(main_text, size="sm", color=DEEP_PURPLE, margin="md"),
     ]
     if sub_text:
         body_contents += [
             _text("― カードの基本メッセージ ―", size="xxs", color=GOLD, align="center", margin="xl"),
             _text(sub_text, size="xs", color=SOFT_TEXT, margin="sm"),
         ]
-
-    bubble = {
+    return {
         "type": "bubble",
         "size": "mega",
         "hero": _hero(card, base_url),
-        "body": {
-            "type": "box",
-            "layout": "vertical",
-            "paddingAll": "20px",
-            "backgroundColor": LAVENDER_BG,
-            "contents": body_contents,
-        },
+        "body": _body(body_contents),
     }
-    return bubble
 
 
 def _hero(card: dict, base_url: str) -> dict:
     url = deck.card_image_url(card["id"], base_url)
     if url:
         return {"type": "image", "url": url, "size": "full", "aspectRatio": "2:3", "aspectMode": "cover"}
-    # 画像がまだないカード用の装飾デザイン
+
+    back = deck.ui_asset_url("card_back.jpg", base_url)
+    if not back:
+        return _gradient_hero(card)
+
+    # 画像がまだないカードは、天空の背景＋金の枠＋カード名で表示する
+    return {
+        "type": "box",
+        "layout": "vertical",
+        "paddingAll": "0px",
+        "contents": [
+            {"type": "image", "url": back, "size": "full", "aspectRatio": "4:5", "aspectMode": "cover"},
+            {
+                "type": "box",
+                "layout": "vertical",
+                "position": "absolute",
+                "offsetTop": "10px",
+                "offsetBottom": "10px",
+                "offsetStart": "10px",
+                "offsetEnd": "10px",
+                "borderWidth": "2px",
+                "borderColor": GOLD_LIGHT,
+                "cornerRadius": "14px",
+                "contents": [{"type": "filler"}],
+            },
+            {
+                "type": "box",
+                "layout": "vertical",
+                "position": "absolute",
+                "offsetBottom": "26px",
+                "offsetStart": "28px",
+                "offsetEnd": "28px",
+                "paddingAll": "10px",
+                "cornerRadius": "12px",
+                "backgroundColor": FRAME_WHITE,
+                "borderWidth": "1px",
+                "borderColor": GOLD_LIGHT,
+                "contents": [
+                    _text(f"✦ No.{card['id']:02d} ✦", size="xs", color=GOLD, weight="bold", align="center"),
+                    _text(card["name"], size="md", color=DEEP_PURPLE, weight="bold", align="center"),
+                ],
+            },
+        ],
+    }
+
+
+def _gradient_hero(card: dict) -> dict:
+    """公開URL未設定のときの予備デザイン。"""
     return {
         "type": "box",
         "layout": "vertical",
@@ -258,13 +302,41 @@ def _hero(card: dict, base_url: str) -> dict:
     }
 
 
+def _body(contents: list[dict]) -> dict:
+    return {
+        "type": "box",
+        "layout": "vertical",
+        "paddingAll": "20px",
+        "background": _gradient(),
+        "borderWidth": "2px",
+        "borderColor": GOLD_LIGHT,
+        "contents": contents,
+    }
+
+
+def _ornament() -> dict:
+    """金の飾り罫（── ✦ ──）"""
+    line = {"type": "separator", "color": GOLD_LIGHT}
+    return {
+        "type": "box",
+        "layout": "horizontal",
+        "alignItems": "center",
+        "margin": "lg",
+        "contents": [
+            {"type": "box", "layout": "vertical", "flex": 1, "contents": [line]},
+            _text("✦", size="xs", color=GOLD, align="center", flex=0, margin="sm"),
+            {"type": "box", "layout": "vertical", "flex": 1, "margin": "sm", "contents": [line]},
+        ],
+    }
+
+
 def _gradient() -> dict:
     return {
         "type": "linearGradient",
-        "angle": "135deg",
-        "startColor": "#E8D9F7",
-        "centerColor": "#FFF6E0",
-        "endColor": "#FADCE8",
+        "angle": "160deg",
+        "startColor": "#EBDDFB",
+        "centerColor": "#FBF3FF",
+        "endColor": "#F9E1EF",
     }
 
 

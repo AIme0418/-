@@ -53,3 +53,10 @@ def card_image_url(card_id: int, public_base_url: str) -> str | None:
 
 def pick_closing(options: list[str]) -> str:
     return _rng.choice(options)
+
+
+def ui_asset_url(filename: str, public_base_url: str) -> str | None:
+    """背景・ロゴなどの装飾画像のURL（https必須）。"""
+    if not public_base_url.startswith("https://"):
+        return None
+    return f"{public_base_url.rstrip('/')}/static/ui/{filename}"
