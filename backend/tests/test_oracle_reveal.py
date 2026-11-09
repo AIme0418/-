@@ -31,7 +31,8 @@ def test_intro_shows_guide_text_and_card_back_with_open_button():
     intro, button = _open_data()
     assert intro[0] == {"type": "text", "text": replies.ONE_INTRO_TEXT}
     hero = intro[1]["contents"]["hero"]
-    assert hero["url"] == f"{BASE}/static/ui/oracle_back.jpg"
+    assert hero["url"] == f"{BASE}/static/ui/oracle_back_wide.jpg"
+    assert hero["aspectRatio"] == "4:3"  # カード全体が1画面に収まる横長
     assert button["type"] == "postback" and button["label"] == "✨ カードを開く"
     assert len(button["data"]) <= 300  # LINEのpostbackデータ上限
 

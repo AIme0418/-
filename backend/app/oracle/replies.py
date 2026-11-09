@@ -204,9 +204,10 @@ def _back_message(kind: str, data: str, base_url: str, step: int) -> dict:
         caption = None
         label = "✨ カードを開く"
 
-    back = deck.ui_asset_url("oracle_back.jpg", base_url)
+    # 横長の画像（カード全体＋左右はぼかした背景）。リッチメニューが開いていても1画面に収まる
+    back = deck.ui_asset_url("oracle_back_wide.jpg", base_url)
     if back:
-        hero = {"type": "image", "url": back, "size": "full", "aspectRatio": "2:3", "aspectMode": "cover"}
+        hero = {"type": "image", "url": back, "size": "full", "aspectRatio": "4:3", "aspectMode": "cover"}
     else:
         hero = {
             "type": "box",
@@ -224,7 +225,7 @@ def _back_message(kind: str, data: str, base_url: str, step: int) -> dict:
             "type": "button",
             "style": "primary",
             "color": "#8E5BC4",
-            "height": "md",
+            "height": "sm",
             "action": {
                 "type": "postback",
                 "label": label,
@@ -236,13 +237,13 @@ def _back_message(kind: str, data: str, base_url: str, step: int) -> dict:
     )
     bubble = {
         "type": "bubble",
-        "size": "mega",
+        "size": "giga",
         "hero": hero,
         "footer": {
             "type": "box",
             "layout": "vertical",
-            "spacing": "md",
-            "paddingAll": "14px",
+            "spacing": "sm",
+            "paddingAll": "10px",
             "background": _gradient(),
             "contents": footer_contents,
         },
