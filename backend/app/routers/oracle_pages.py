@@ -2,10 +2,12 @@
 
 import html
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
+from ..config import settings
 from ..oracle import deck
+from ..rate_limit import enforce_per_ip_limit
 
 router = APIRouter()
 
@@ -82,3 +84,32 @@ summary::-webkit-details-marker{display:none}
 def card_list_page() -> str:
     cards = "".join(_card_html(c) for c in deck.load_cards())
     return PAGE_TEMPLATE.replace("__CARDS__", cards)
+
+
+@router.post("/api/oracle/draw")
+def draw_one(request: Request) -> dict:
+    """演出ページ（/oracle/）の「カードを引く」で1枚引く。
+
+    カードはボタンを押した瞬間にサーバーで決まる（ページ側では選ばない）。
+    AIは使わないので費用はかからない。連打だけIPごとの上限で防ぐ。
+    """
+    enforce_per_ip_limit(request.client.host if request.client else "unknown")
+    card = deck.draw(1)[0]
+    image = deck.card_image_filename(card["id"])
+    return {
+        "id": card["id"],
+        "name": card["name"],
+        "keyword": card["keyword"],
+        "message": card["message"],
+        "love": card["love"],
+        "work": card["work"],
+        "healing": card["healing"],
+        "image": f"/static/cards/{image}" if image else None,
+    }
+
+
+def oracle_page_url(base_url: str = "") -> str | None:
+    base = base_url or settings.public_base_url
+    if not base.startswith("https://"):
+        return None
+    return f"{base.rstrip('/')}/oracle/"

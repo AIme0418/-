@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>ルミエル ワンオラクル</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: 夜空の舞台を1画面に。上に見出し、中央に女神と光の玉、下にメッセージと大きなボタン */
+:root{
+  --night:#1a1433; --deep:#0d0a1e; --halo:#2c2257;
+  --gold:#f3d9a4; --cream:#fff6e0; --lav:#b9a6f2; --rose:#f2b8cf;
+  --ink:#f4effc; --muted:#b9b0d6; --btn-ink:#241a4a;
+  --display:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",serif;
+  --body:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:radial-gradient(ellipse at 50% 30%,var(--halo) 0%,var(--night) 48%,var(--deep) 100%) fixed,var(--deep);
+  color:var(--ink);font-family:var(--body);
+  margin:0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+.app{max-width:480px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;padding-block:calc(18px + env(safe-area-inset-top,0px)) calc(20px + env(safe-area-inset-bottom,0px));gap:10px}
+header{text-align:center}
+.eyebrow{margin:0;font-size:12px;letter-spacing:.18em;color:var(--gold)}
+h1{margin:4px 0 2px;font-family:var(--display);font-weight:700;font-size:30px;letter-spacing:.12em;text-wrap:balance}
+.sub{margin:0;font-size:14px;color:var(--muted)}
+.stage{position:relative;flex:1;min-height:360px}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:pointer}
+.card-wrap{position:absolute;inset:0;display:grid;place-items:center;perspective:1200px;pointer-events:none}
+.card{width:min(58vw,230px);max-width:100%;aspect-ratio:2/3;position:relative;transform-style:preserve-3d;
+  transform:scale(.55) rotateY(0deg);opacity:0;transition:transform 1s cubic-bezier(.2,.7,.2,1),opacity .5s}
+.card.in{opacity:1;transform:scale(1) rotateY(0deg)}
+.card.flip{opacity:1;transform:scale(1) rotateY(180deg)}
+.face img{display:block;width:100%;height:100%;object-fit:cover}
+.face{position:absolute;inset:0;border-radius:16px;backface-visibility:hidden;-webkit-backface-visibility:hidden;
+  border:1px solid rgba(243,217,164,.75);box-shadow:0 0 44px rgba(255,228,180,.35);overflow:hidden}
+.back{background:
+  radial-gradient(circle at 50% 50%,rgba(243,217,164,.5) 0 9%,transparent 10%),
+  radial-gradient(circle at 50% 50%,transparent 0 22%,rgba(243,217,164,.35) 22.5% 23.5%,transparent 24%),
+  repeating-conic-gradient(from 0deg at 50% 50%,rgba(243,217,164,.13) 0 5deg,transparent 5deg 15deg),
+  linear-gradient(160deg,#3b2d78,#1c153f)}
+.front{transform:rotateY(180deg);background:#3b2d78}
+.front .rays{position:absolute;inset:0;background:repeating-conic-gradient(from 0deg at 50% 36%,rgba(255,255,255,.18) 0 3deg,transparent 3deg 18deg);
+  mask:radial-gradient(circle at 50% 36%,#000 0 30%,transparent 62%);-webkit-mask:radial-gradient(circle at 50% 36%,#000 0 30%,transparent 62%)}
+.no{position:absolute;top:18px;left:0;right:0;font-size:11px;letter-spacing:.22em;color:#3b2d78;font-variant-numeric:tabular-nums}
+.cname{position:relative;margin:0;font-family:var(--display);font-weight:700;font-size:25px;letter-spacing:.08em;color:#fff;text-shadow:0 1px 10px rgba(40,20,90,.7)}
+.kw{position:relative;margin:4px 0 0;font-size:12px;letter-spacing:.35em;color:var(--cream)}
+.msg{background:rgba(255,246,224,.07);border:1px solid rgba(243,217,164,.35);border-radius:18px;padding:14px 16px;text-align:center}
+.msg-no{margin:0;font-size:12px;letter-spacing:.2em;color:var(--muted);font-variant-numeric:tabular-nums}
+.msg-title{margin:2px 0 0;font-family:var(--display);font-size:20px;color:var(--gold);text-wrap:balance}
+.msg-kw{margin:2px 0 0;font-size:14px;color:var(--rose);letter-spacing:.1em}
+.more{margin-top:10px;text-align:left;font-size:15px;line-height:1.8}
+.more summary{cursor:pointer;text-align:center;color:var(--lav);min-height:44px;display:flex;align-items:center;justify-content:center}
+.more h3{margin:10px 0 0;font-size:14px;color:var(--gold)}
+.more p{margin:2px 0 0}
+.err{color:var(--rose)}
+.msg-text{margin:6px 0 0;font-size:16px;line-height:1.8}
+.btn{appearance:none;border:0;width:100%;min-height:56px;border-radius:999px;font:inherit;font-size:18px;font-weight:700;letter-spacing:.1em;cursor:pointer;
+  color:var(--btn-ink);background:linear-gradient(180deg,var(--cream),var(--gold));box-shadow:0 0 28px rgba(243,217,164,.35)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn:focus-visible{outline:3px solid var(--lav);outline-offset:3px}
+.note{margin:0;font-size:12px;line-height:1.7;color:var(--muted);text-align:center}
+@media (prefers-reduced-motion:reduce){.card{transition:opacity .3s}}
+</style>
+
+</head><body>
+<main class="app">
+  <header>
+    <p class="eyebrow">ルミエル｜天使と女神のオラクル</p>
+    <h1>ワンオラクル</h1>
+    <p class="sub">心を静めて、知りたいことを思い浮かべてください</p>
+  </header>
+
+  <div class="stage" id="stage">
+    <canvas id="cv" role="img" aria-label="女神のまわりを光の玉が回っています"></canvas>
+    <div class="card-wrap" id="cardWrap" hidden>
+      <div class="card" id="card">
+        <div class="face back"><img src="/static/ui/oracle_back.jpg" alt=""></div>
+        <div class="face front"><img id="cImg" alt=""></div>
+      </div>
+    </div>
+  </div>
+
+  <section class="msg" id="msg" hidden aria-live="polite">
+    <p class="msg-no" id="mNo"></p>
+    <p class="msg-title" id="mTitle"></p>
+    <p class="msg-kw" id="mKw"></p>
+    <p class="msg-text" id="mText"></p>
+    <details class="more">
+      <summary>テーマ別のメッセージを見る</summary>
+      <h3>恋愛・人間関係</h3><p id="mLove"></p>
+      <h3>仕事・金運</h3><p id="mWork"></p>
+      <h3>心の癒し</h3><p id="mHeal"></p>
+    </details>
+  </section>
+
+  <button class="btn" id="drawBtn" type="button">カードを引く</button>
+  <p class="note" id="note">終わったら、左上の「×」でLINEのトークに戻れます。</p>
+</main>
+
+<script>
+const cv=document.getElementById("cv"),ctx=cv.getContext("2d");
+const btn=document.getElementById("drawBtn"),wrap=document.getElementById("cardWrap"),card=document.getElementById("card"),msg=document.getElementById("msg");
+const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+let W=0,H=0,S=0,CX=0,CY=0;
+function resize(){const r=cv.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);cv.width=Math.round(r.width*d);cv.height=Math.round(r.height*d);ctx.setTransform(d,0,0,d,0,0);W=r.width;H=r.height;S=Math.min(W*1.05,H*.95);CX=W/2;CY=H*.5}
+new ResizeObserver(resize).observe(cv);resize();
+
+const COLORS=["#fff1c9","#f8c9dc","#cdbdfb","#bfe6ff","#ffe0a8","#f8c9dc","#cdbdfb","#fff1c9"];
+const orbs=COLORS.map((c,i)=>({a:i/COLORS.length*Math.PI*2,c,trail:[]}));
+const stars=Array.from({length:70},()=>({x:Math.random(),y:Math.random()*.9,r:Math.random()*1.2+.3,p:Math.random()*6}));
+let state="idle",speed=.7,t=0,T=0,chosen=null,from=null,flash=0;
+
+const rgba=(h,a)=>{const n=parseInt(h.slice(1),16);return `rgba(${n>>16},${n>>8&255},${n&255},${a})`};
+const ease=k=>k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+function orbPos(o){return{x:CX+S*.46*Math.cos(o.a),y:CY+S*.02+S*.12*Math.sin(o.a),d:Math.sin(o.a)}}
+function glow(x,y,r,c,a){const g=ctx.createRadialGradient(x,y,0,x,y,r*4);g.addColorStop(0,`rgba(255,255,255,${a})`);g.addColorStop(.2,rgba(c,a*.9));g.addColorStop(1,rgba(c,0));ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r*4,0,7);ctx.fill()}
+
+// 女神様の画像（static/ui/goddess.jpg）。ふちをぼかして夜空になじませる
+const GODDESS=new Image();let soft=null;
+GODDESS.onload=()=>{const c=document.createElement("canvas");c.width=GODDESS.width;c.height=GODDESS.height;const g=c.getContext("2d");
+  g.drawImage(GODDESS,0,0);g.globalCompositeOperation="destination-in";
+  g.save();g.translate(c.width/2,c.height*.46);g.scale(1,c.height/c.width*.92);
+  const m=g.createRadialGradient(0,0,0,0,0,c.width*.5);m.addColorStop(0,"#000");m.addColorStop(.6,"#000");m.addColorStop(1,"rgba(0,0,0,0)");
+  g.fillStyle=m;g.fillRect(-c.width,-c.height,c.width*2,c.height*2);g.restore();soft=c};
+GODDESS.src="/static/ui/goddess.jpg";
+
+function goddess(dim){
+  const s=S,x=CX,y=CY;
+  ctx.save();
+  let g=ctx.createRadialGradient(x,y-s*.1,0,x,y-s*.1,s*.62);
+  g.addColorStop(0,"rgba(255,238,205,.40)");g.addColorStop(.5,"rgba(200,180,255,.14)");g.addColorStop(1,"rgba(200,180,255,0)");
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  if(soft){const h=s*1.15,w=h*soft.width/soft.height,bob=Math.sin(T*1.1)*s*.006;
+    ctx.globalAlpha=1-dim*.55;ctx.drawImage(soft,x-w/2,y-h*.52+bob,w,h)}
+  ctx.restore();
+}
+
+function drawOrbs(front,fade){
+  for(const o of orbs){
+    if(o===chosen)continue;
+    const p=orbPos(o);if((p.d>0)!==front)continue;
+    const sc=.65+.35*(p.d+1)/2;
+    o.trail.push(p);if(o.trail.length>12)o.trail.shift();
+    ctx.lineCap="round";
+    for(let i=1;i<o.trail.length;i++){const a=o.trail[i-1],b=o.trail[i];
+      ctx.strokeStyle=rgba(o.c,fade*.35*i/o.trail.length);ctx.lineWidth=S*.012*sc*i/o.trail.length;
+      ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke()}
+    glow(p.x,p.y,S*.012*sc,o.c,fade*(.5+.5*sc));
+  }
+}
+
+function update(dt){
+  t+=dt;T+=dt;
+  if(state==="idle")speed+=(.7-speed)*Math.min(1,dt*2);
+  if(state==="spin"){speed=.7+6.3*Math.pow(Math.min(1,t/1.6),2);
+    if(t>1.9){state="choose";t=0;chosen=orbs.reduce((b,o)=>Math.sin(o.a)>Math.sin(b.a)?o:b);from=orbPos(chosen)}}
+  if(state==="choose"){speed=Math.max(.3,speed-dt*7);
+    if(failed){resetStage();const n=document.getElementById("note");n.textContent="うまくつながりませんでした。少し待ってから、もう一度「カードを引く」を押してください。";n.classList.add("err");return}
+    if(t>1.1&&result){state="flash";t=0}}
+  if(state==="flash"){flash=Math.min(1,t/.35);if(t>.35){state="reveal";t=0;showCard()}}
+  if(state==="reveal")flash=Math.max(0,1-t/.7);
+  for(const o of orbs)if(o!==chosen)o.a+=speed*dt;
+}
+
+function render(){
+  ctx.clearRect(0,0,W,H);
+  for(const s of stars){ctx.fillStyle=`rgba(255,248,230,${.3+.35*Math.sin(T*1.3+s.p)})`;ctx.beginPath();ctx.arc(s.x*W,s.y*H,s.r,0,7);ctx.fill()}
+  const dim=state==="reveal"?1:state==="flash"?1:state==="choose"?Math.min(1,t/1.1)*.6:0;
+  const fade=state==="choose"?Math.max(0,1-t/.8):(state==="flash"||state==="reveal")?0:1;
+  drawOrbs(false,fade);goddess(dim);drawOrbs(true,fade);
+  if(chosen&&from&&(state==="choose"||state==="flash")){
+    const k=state==="choose"?ease(Math.min(1,t/1.1)):1;
+    const x=from.x+(CX-from.x)*k,y=from.y+(CY-S*.3-from.y)*k,r=S*.012*(1+k*3.5);
+    glow(x,y,r,chosen.c,1);
+    ctx.strokeStyle=rgba("#fff6e0",.5*k);ctx.lineWidth=1.2; // きらめきの輪
+    for(let i=0;i<8;i++){const a=i/8*Math.PI*2+T*2,d=r*(3+k*2);ctx.beginPath();ctx.moveTo(x+Math.cos(a)*d*.7,y+Math.sin(a)*d*.7);ctx.lineTo(x+Math.cos(a)*d,y+Math.sin(a)*d);ctx.stroke()}
+  }
+  if(flash>0){const g=ctx.createRadialGradient(CX,CY-S*.3,0,CX,CY-S*.3,Math.min(W,H)*.6);
+    g.addColorStop(0,`rgba(255,250,238,${flash})`);g.addColorStop(.4,`rgba(255,240,215,${flash*.55})`);g.addColorStop(1,"rgba(255,240,215,0)");
+    ctx.fillStyle=g;ctx.fillRect(0,0,W,H)}
+}
+
+let last=performance.now();
+function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;update(dt);render();requestAnimationFrame(frame)}
+requestAnimationFrame(frame);
+
+let result=null,failed=false;
+function fetchCard(){
+  result=null;failed=false;
+  fetch("/api/oracle/draw",{method:"POST"}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()})
+    .then(c=>{const img=new Image();img.onload=img.onerror=()=>{result=c};img.src=c.image||"/static/ui/oracle_back.jpg";c._src=img.src})
+    .catch(()=>{failed=true});
+}
+function setText(id,v){document.getElementById(id).textContent=v||""}
+function showCard(){
+  const c=result;
+  document.getElementById("cImg").src=c._src;document.getElementById("cImg").alt=c.name;
+  setText("mNo",`No.${String(c.id).padStart(2,"0")}`);setText("mTitle",c.name);setText("mKw",`「${c.keyword}」`);
+  setText("mText",c.message);setText("mLove",c.love);setText("mWork",c.work);setText("mHeal",c.healing);
+  msg.querySelector("details").open=false;
+  wrap.hidden=false;card.className="card";
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{card.classList.add("in");
+    setTimeout(()=>{card.classList.add("flip");setTimeout(()=>{msg.hidden=false;btn.disabled=false;btn.textContent="もう一度引く";
+      msg.scrollIntoView({behavior:reduce?"auto":"smooth",block:"nearest"})},reduce?100:900)},reduce?50:650)}));
+}
+function resetStage(){wrap.hidden=true;card.className="card";msg.hidden=true;chosen=null;flash=0;
+  orbs.forEach(o=>o.trail=[]);state="idle";t=0;btn.disabled=false;btn.textContent="カードを引く"}
+function draw(){
+  if(state==="idle"){btn.disabled=true;btn.textContent="カードを選んでいます…";fetchCard();
+    document.getElementById("note").textContent="終わったら、左上の「×」でLINEのトークに戻れます。";
+    document.getElementById("note").classList.remove("err");
+    if(reduce){state="choose";t=1.1;from=null}else{state="spin";t=0}}
+  else if(state==="reveal")resetStage();
+}
+btn.addEventListener("click",draw);
+cv.addEventListener("click",()=>{if(state==="idle")draw()});
+fetch("/static/ui/oracle_back.jpg").catch(()=>{});
+</script>
+
+</body></html>

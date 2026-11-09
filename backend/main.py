@@ -42,6 +42,8 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 STATIC_DIR.mkdir(exist_ok=True)
 # 波動の音（スマホ向けの音のページ）。/sound/ で開く
 app.mount("/sound", StaticFiles(directory=STATIC_DIR / "sound", html=True), name="sound")
+# ワンオラクルの演出ページ（女神様のまわりを光の玉が回ってカードが選ばれる）。/oracle/ で開く
+app.mount("/oracle", StaticFiles(directory=STATIC_DIR / "oracle", html=True), name="oracle")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 

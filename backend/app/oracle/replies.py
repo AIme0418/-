@@ -179,6 +179,16 @@ def _back_message(kind: str, data: str, base_url: str, step: int) -> dict:
             "action": {"type": "postback", "label": label, "data": data, "displayText": label},
         }
     )
+    if kind == "one" and base_url.startswith("https://"):
+        # 演出つきで引くページ（女神様が光の玉で1枚選ぶ）。チャットで開く今までのボタンはそのまま
+        footer_contents.append(
+            {
+                "type": "button",
+                "style": "secondary",
+                "height": "md",
+                "action": {"type": "uri", "label": "🌟 女神様に選んでもらう", "uri": f"{base_url.rstrip('/')}/oracle/"},
+            }
+        )
     bubble = {
         "type": "bubble",
         "size": "mega",
