@@ -148,29 +148,30 @@ def _intro(kind: str, user_id: str, base_url: str) -> list[dict]:
 
 def _goddess_message(base_url: str) -> dict:
     url = f"{base_url.rstrip('/')}/oracle/"
-    goddess = deck.ui_asset_url("goddess.jpg", base_url)
+    # 横長の画像（女神様の全身＋左右はぼかした背景）。リッチメニューが開いていても1画面に収まる高さにする
+    goddess = deck.ui_asset_url("goddess_wide.jpg", base_url)
     bubble = {
         "type": "bubble",
-        "size": "mega",
+        "size": "giga",
         "hero": {
             "type": "image",
             "url": goddess,
             "size": "full",
-            "aspectRatio": "4:5",
+            "aspectRatio": "4:3",
             "aspectMode": "cover",
             "action": {"type": "uri", "label": "女神様に選んでもらう", "uri": url},
         },
         "footer": {
             "type": "box",
             "layout": "vertical",
-            "paddingAll": "14px",
+            "paddingAll": "10px",
             "background": _gradient(),
             "contents": [
                 {
                     "type": "button",
                     "style": "primary",
                     "color": "#8E5BC4",
-                    "height": "md",
+                    "height": "sm",
                     "action": {"type": "uri", "label": "🌟 女神様に選んでもらう", "uri": url},
                 }
             ],

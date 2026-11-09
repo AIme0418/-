@@ -22,6 +22,7 @@ def test_page_is_served():
 
 def test_page_assets_exist():
     assert client.get("/static/ui/goddess.jpg").status_code == 200
+    assert client.get("/static/ui/goddess_wide.jpg").status_code == 200
     assert client.get("/static/ui/oracle_back.jpg").status_code == 200
 
 
@@ -54,7 +55,8 @@ def test_one_oracle_opens_only_the_goddess_page():
     intro = replies.build_reply("one", BASE, user_id="U1")
     assert intro[0]["text"] == replies.GODDESS_INTRO_TEXT
     bubble = intro[1]["contents"]
-    assert bubble["hero"]["url"] == f"{BASE}/static/ui/goddess.jpg"
+    assert bubble["hero"]["url"] == f"{BASE}/static/ui/goddess_wide.jpg"
+    assert bubble["hero"]["aspectRatio"] == "4:3"  # 全身が見えて、1画面に収まる横長
     buttons = bubble["footer"]["contents"]
     assert [b["action"] for b in buttons] == [{"type": "uri", "label": "🌟 女神様に選んでもらう", "uri": f"{BASE}/oracle/"}]
     assert len(buttons[0]["action"]["label"]) <= 20  # LINEのボタン文字数上限
