@@ -50,22 +50,40 @@ def test_draw_rejects_get():
     assert client.get("/api/oracle/draw").status_code == 405
 
 
-def test_one_oracle_has_goddess_button_after_open_button():
+def test_one_oracle_opens_only_the_goddess_page():
     intro = replies.build_reply("one", BASE, user_id="U1")
-    buttons = intro[1]["contents"]["footer"]["contents"]
-    assert buttons[0]["action"]["type"] == "postback"  # 今までの「カードを開く」が先頭のまま
-    assert buttons[1]["action"] == {"type": "uri", "label": "🌟 女神様に選んでもらう", "uri": f"{BASE}/oracle/"}
-    assert len(buttons[1]["action"]["label"]) <= 20  # LINEのボタン文字数上限
+    assert intro[0]["text"] == replies.GODDESS_INTRO_TEXT
+    bubble = intro[1]["contents"]
+    assert bubble["hero"]["url"] == f"{BASE}/static/ui/goddess.jpg"
+    buttons = bubble["footer"]["contents"]
+    assert [b["action"] for b in buttons] == [{"type": "uri", "label": "🌟 女神様に選んでもらう", "uri": f"{BASE}/oracle/"}]
+    assert len(buttons[0]["action"]["label"]) <= 20  # LINEのボタン文字数上限
 
 
-def test_other_menus_do_not_get_goddess_button():
+def test_one_oracle_does_not_start_a_chat_draw():
+    from app.oracle import sessions
+    sessions._sessions.clear()
+    replies.build_reply("one", BASE, user_id="U1")
+    assert sessions._sessions == {}
+
+
+def test_old_open_buttons_in_chat_history_still_work():
+    from app.oracle import sessions
+    intro = replies._back_intro("one", "U1", BASE)
+    data = intro[1]["contents"]["footer"]["contents"][0]["action"]["data"]
+    msgs = replies.build_postback_reply("U1", data, BASE)
+    assert msgs and msgs[0]["text"] == replies.REVEAL_TEXT
+    sessions._sessions.clear()
+
+
+def test_other_menus_keep_the_chat_draw_without_goddess_button():
     for kind in ["three", "love", "work", "healing"]:
         intro = replies.build_reply(kind, BASE, user_id="U1")
         actions = [b.get("action", {}).get("type") for b in intro[1]["contents"]["footer"]["contents"] if b.get("type") == "button"]
-        assert "uri" not in actions
+        assert actions == ["postback"]
 
 
-def test_no_goddess_button_without_https_url():
+def test_one_oracle_falls_back_to_chat_draw_without_https_url():
     intro = replies.build_reply("one", "", user_id="U1")
     actions = [b["action"]["type"] for b in intro[1]["contents"]["footer"]["contents"] if b.get("type") == "button"]
     assert actions == ["postback"]

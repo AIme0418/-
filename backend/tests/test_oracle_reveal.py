@@ -21,7 +21,8 @@ def _clean_sessions():
 
 
 def _open_data(user="Uuser"):
-    intro = replies.build_reply("one", BASE, user_id=user)
+    # チャットの中で引く方法（公開URLがないときや、以前に届いたボタン用に残している）
+    intro = replies._back_intro("one", user, BASE)
     button = intro[1]["contents"]["footer"]["contents"][0]["action"]
     return intro, button
 

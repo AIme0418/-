@@ -132,7 +132,55 @@ AGAIN_WORD = {"one": "ワンオラクル", "three": "スリーオラクル", "lo
 REVEAL_KINDS = set(AGAIN_WORD)
 
 
+GODDESS_INTRO_TEXT = (
+    "✨ 天使と女神たちが、あなたへのメッセージを準備しています。\n\n"
+    "ゆっくり深呼吸して、今のあなたの心に意識を向けてみてください。🌙\n"
+    "下のボタンを押すと、女神様があなたのカードを選んでくれます。"
+)
+
+
 def _intro(kind: str, user_id: str, base_url: str) -> list[dict]:
+    if kind == "one" and base_url.startswith("https://"):
+        # ワンオラクルは女神様の演出ページで引く（チャットで開く方法と2つあると迷うため1つに）
+        return [{"type": "text", "text": GODDESS_INTRO_TEXT}, _goddess_message(base_url)]
+    return _back_intro(kind, user_id, base_url)
+
+
+def _goddess_message(base_url: str) -> dict:
+    url = f"{base_url.rstrip('/')}/oracle/"
+    goddess = deck.ui_asset_url("goddess.jpg", base_url)
+    bubble = {
+        "type": "bubble",
+        "size": "mega",
+        "hero": {
+            "type": "image",
+            "url": goddess,
+            "size": "full",
+            "aspectRatio": "4:5",
+            "aspectMode": "cover",
+            "action": {"type": "uri", "label": "女神様に選んでもらう", "uri": url},
+        },
+        "footer": {
+            "type": "box",
+            "layout": "vertical",
+            "paddingAll": "14px",
+            "background": _gradient(),
+            "contents": [
+                {
+                    "type": "button",
+                    "style": "primary",
+                    "color": "#8E5BC4",
+                    "height": "md",
+                    "action": {"type": "uri", "label": "🌟 女神様に選んでもらう", "uri": url},
+                }
+            ],
+        },
+    }
+    return _flex("✨ ワンオラクル｜女神様があなたのカードを選びます", bubble)
+
+
+def _back_intro(kind: str, user_id: str, base_url: str) -> list[dict]:
+    """カード裏面＋「カードを開く」で、チャットの中で引く方法。"""
     if kind == "three":
         text = THREE_INTRO_TEXT
     elif kind in THEMES:
@@ -185,16 +233,6 @@ def _back_message(kind: str, data: str, base_url: str, step: int) -> dict:
             },
         }
     )
-    if kind == "one" and base_url.startswith("https://"):
-        # 演出つきで引くページ（女神様が光の玉で1枚選ぶ）。チャットで開く今までのボタンはそのまま
-        footer_contents.append(
-            {
-                "type": "button",
-                "style": "secondary",
-                "height": "md",
-                "action": {"type": "uri", "label": "🌟 女神様に選んでもらう", "uri": f"{base_url.rstrip('/')}/oracle/"},
-            }
-        )
     bubble = {
         "type": "bubble",
         "size": "mega",
