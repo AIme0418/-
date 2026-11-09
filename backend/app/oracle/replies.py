@@ -176,7 +176,13 @@ def _back_message(kind: str, data: str, base_url: str, step: int) -> dict:
             "style": "primary",
             "color": "#8E5BC4",
             "height": "md",
-            "action": {"type": "postback", "label": label, "data": data, "displayText": label},
+            "action": {
+                "type": "postback",
+                "label": label,
+                "data": data,
+                "displayText": label,
+                "inputOption": "closeRichMenu",
+            },
         }
     )
     if kind == "one" and base_url.startswith("https://"):
@@ -206,22 +212,22 @@ def _back_message(kind: str, data: str, base_url: str, step: int) -> dict:
 
 
 def _again_buttons(kind: str, base_url: str = "") -> dict:
-    box = {
+    row = {
         "type": "box",
-        "layout": "vertical",
+        "layout": "horizontal",
         "spacing": "sm",
-        "paddingAll": "14px",
-        "backgroundColor": "#F9E1EF",
         "contents": [
             {
                 "type": "button",
                 "style": "primary",
                 "color": "#8E5BC4",
+                "height": "sm",
                 "action": {"type": "message", "label": "🔮 もう一度引く", "text": AGAIN_WORD[kind]},
             },
             {
                 "type": "button",
                 "style": "secondary",
+                "height": "sm",
                 "action": {
                     "type": "postback",
                     "label": "💜 メニューに戻る",
@@ -230,6 +236,14 @@ def _again_buttons(kind: str, base_url: str = "") -> dict:
                 },
             },
         ],
+    }
+    box = {
+        "type": "box",
+        "layout": "vertical",
+        "spacing": "xs",
+        "paddingAll": "10px",
+        "backgroundColor": "#F9E1EF",
+        "contents": [row],
     }
     sound = sound_url(base_url)
     if sound:
@@ -243,6 +257,17 @@ def _again_buttons(kind: str, base_url: str = "") -> dict:
             }
         )
     return box
+
+
+def footer_buttons(footer: dict) -> list[dict]:
+    """フッターの中のボタンを、横並びの行も含めて順番に取り出す。"""
+    out = []
+    for c in footer.get("contents", []):
+        if c.get("type") == "button":
+            out.append(c)
+        elif c.get("type") == "box":
+            out += footer_buttons(c)
+    return out
 
 
 def sound_url(base_url: str) -> str | None:
@@ -308,24 +333,57 @@ def _theme_reveal(card: dict, kind: str, base_url: str) -> list[dict]:
 
 
 def _three_reveal(card_ids: list[int], sid: str, base_url: str) -> list[dict]:
-    """スリーオラクルのstep枚目を開いたときの返信。"""
+    """スリーオラクルのstep枚目を開いたときの返信。結果が1画面に収まるようにする。"""
     step = len(card_ids)
     card = deck.get_card(card_ids[-1])
     pos = THREE_POSITIONS[step - 1]
     bubble = _card_bubble(card, base_url, label=f"{THREE_STEP_NAMES[step - 1]}：{pos}", main_text=card["message"])
-    messages = [
-        {"type": "text", "text": f"✨ {THREE_STEP_NAMES[step - 1]}「{pos}」のカードは……"},
-        _flex(f"{pos}｜{card['name']}「{card['keyword']}」", bubble),
-    ]
+    text = {"type": "text", "text": f"✨ {THREE_STEP_NAMES[step - 1]}「{pos}」のカードは……"}
     if step < 3:
         data = sessions.next_step_data(sid, "three", step + 1, card_ids)
-        messages.append(_back_message("three", data, base_url, step=step + 1))
-    else:
-        cards = [deck.get_card(i) for i in card_ids]
-        summary = _summary_bubble(cards, base_url)
-        summary["footer"] = _again_buttons("three", base_url)
-        messages.append(_flex("✦ 3枚からの総合メッセージ ✦", summary))
-    return messages
+        label = f"✨ {THREE_STEP_NAMES[step]}を開く"
+        bubble["footer"] = {
+            "type": "box",
+            "layout": "vertical",
+            "paddingAll": "10px",
+            "backgroundColor": "#F9E1EF",
+            "contents": [
+                _text(f"次は {THREE_STEP_NAMES[step]}「{THREE_POSITIONS[step]}」", size="xs", color=GOLD, align="center"),
+                {
+                    "type": "button",
+                    "style": "primary",
+                    "color": "#8E5BC4",
+                    "height": "sm",
+                    "margin": "sm",
+                    "action": {"type": "postback", "label": label, "data": data, "displayText": label,
+                               "inputOption": "closeRichMenu"},
+                },
+            ],
+        }
+        return [text, _flex(f"{pos}｜{card['name']}「{card['keyword']}」", bubble)]
+
+    bubble["footer"] = {
+        "type": "box",
+        "layout": "vertical",
+        "paddingAll": "10px",
+        "backgroundColor": "#F9E1EF",
+        "contents": [_text("👉 右にスライドすると、3枚の総合メッセージ", size="xs", color=GOLD, align="center")],
+    }
+    cards = [deck.get_card(i) for i in card_ids]
+    summary = _summary_bubble(cards, base_url)
+    summary["size"] = "giga"
+    # 横に並ぶカードと高さがそろうので、ロゴは外して1画面に収める
+    summary.pop("hero", None)
+    summary["body"]["paddingAll"] = "16px"
+    summary["footer"] = _again_buttons("three", base_url)
+    return [
+        text,
+        {
+            "type": "flex",
+            "altText": "✦ 3枚からの総合メッセージ ✦",
+            "contents": {"type": "carousel", "contents": [bubble, summary]},
+        },
+    ]
 
 
 def build_postback_reply(user_id: str, data: str, base_url: str) -> list[dict] | None:
@@ -492,28 +550,66 @@ def _card_list(base_url: str) -> dict:
 
 
 def _card_bubble(card: dict, base_url: str, label: str, main_text: str, sub_text: str | None = None) -> dict:
-    body_contents = [
-        _text(f"✦ {label} ✦", size="xs", color=GOLD, weight="bold", align="center"),
-        _text(card["name"], size="lg", color=DEEP_PURPLE, weight="bold", align="center", margin="sm"),
-        _text(f"「{card['keyword']}」", size="md", color=PINK, weight="bold", align="center"),
-        _ornament(),
-        _text(main_text, size="sm", color=DEEP_PURPLE, margin="md"),
-    ]
+    """カードの結果。絵と文章が1画面に収まるよう、絵は左に小さめ、名前は右に置く。"""
+    head = {
+        "type": "box",
+        "layout": "horizontal",
+        "spacing": "lg",
+        "contents": [
+            _card_thumb(card, base_url),
+            {
+                "type": "box",
+                "layout": "vertical",
+                "flex": 6,
+                "justifyContent": "center",
+                "spacing": "sm",
+                "contents": [
+                    _text(f"✦ {label} ✦", size="xs", color=GOLD, weight="bold"),
+                    _text(f"No.{card['id']:02d}", size="xxs", color=GOLD),
+                    _text(card["name"], size="md", color=DEEP_PURPLE, weight="bold"),
+                    _text(f"「{card['keyword']}」", size="sm", color=PINK, weight="bold"),
+                ],
+            },
+        ],
+    }
+    body_contents = [head, _ornament(), _text(main_text, size="sm", color=DEEP_PURPLE, margin="md")]
     if card.get("angel_word"):
         body_contents += [
-            _text("― 天使からのひとこと ―", size="xxs", color=GOLD, align="center", margin="xl"),
+            _text("― 天使からのひとこと ―", size="xxs", color=GOLD, align="center", margin="lg"),
             _text(card["angel_word"], size="sm", color=PINK, weight="bold", align="center", margin="sm"),
         ]
     if sub_text:
         body_contents += [
-            _text("― カードの基本メッセージ ―", size="xxs", color=GOLD, align="center", margin="xl"),
+            _text("― カードの基本メッセージ ―", size="xxs", color=GOLD, align="center", margin="lg"),
             _text(sub_text, size="xs", color=SOFT_TEXT, margin="sm"),
         ]
+    body = _body(body_contents)
+    body["paddingAll"] = "16px"
+    return {"type": "bubble", "size": "giga", "body": body}
+
+
+def _card_thumb(card: dict, base_url: str) -> dict:
+    """結果の左側に置くカードの絵（縦2:横3の比率のまま小さめに）。"""
+    url = deck.card_image_url(card["id"], base_url) or deck.ui_asset_url("card_back.jpg", base_url)
+    if url:
+        return {
+            "type": "box",
+            "layout": "vertical",
+            "flex": 5,
+            "cornerRadius": "10px",
+            "borderWidth": "2px",
+            "borderColor": GOLD_LIGHT,
+            "contents": [{"type": "image", "url": url, "size": "full", "aspectRatio": "2:3", "aspectMode": "cover"}],
+        }
     return {
-        "type": "bubble",
-        "size": "mega",
-        "hero": _hero(card, base_url),
-        "body": _body(body_contents),
+        "type": "box",
+        "layout": "vertical",
+        "flex": 5,
+        "height": "150px",
+        "justifyContent": "center",
+        "cornerRadius": "10px",
+        "background": _gradient(),
+        "contents": [_text("✧ ✦ ✧", size="md", color=GOLD, align="center")],
     }
 
 

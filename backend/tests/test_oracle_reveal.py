@@ -46,10 +46,28 @@ def test_open_reveals_one_card_with_again_and_menu_buttons():
     msgs = replies.build_postback_reply("Uuser", button["data"], BASE)
     assert msgs[0]["text"] == replies.REVEAL_TEXT
     bubble = msgs[1]["contents"]
-    labels = [b["action"]["label"] for b in bubble["footer"]["contents"]]
+    buttons = replies.footer_buttons(bubble["footer"])
+    labels = [b["action"]["label"] for b in buttons]
     assert labels == ["🔮 もう一度引く", "💜 メニューに戻る", "🎵 波動の音でひと休み"]
-    assert bubble["footer"]["contents"][0]["action"]["text"] == "ワンオラクル"
-    assert bubble["footer"]["contents"][1]["action"]["inputOption"] == "openRichMenu"
+    assert buttons[0]["action"]["text"] == "ワンオラクル"
+    assert buttons[1]["action"]["inputOption"] == "openRichMenu"
+
+
+def test_result_shows_card_picture_next_to_name_without_tall_hero():
+    _, button = _open_data()
+    assert button["inputOption"] == "closeRichMenu"  # 開くと同時にリッチメニューを閉じる
+    msgs = replies.build_postback_reply("Uuser", button["data"], BASE)
+    bubble = msgs[1]["contents"]
+    assert "hero" not in bubble  # 横幅いっぱいの縦長画像はやめた
+    head = bubble["body"]["contents"][0]
+    assert head["layout"] == "horizontal"
+    thumb = head["contents"][0]["contents"][0]
+    (s,) = sessions._sessions.values()
+    card = deck.get_card(s["cards"][0])
+    assert thumb["type"] == "image" and thumb["aspectRatio"] == "2:3"
+    assert thumb["url"].endswith(f"/static/cards/{card['id']:02d}.jpg")
+    names = [c.get("text") for c in head["contents"][1]["contents"]]
+    assert card["name"] in names and f"「{card['keyword']}」" in names
 
 
 def test_mashing_the_button_gives_only_one_result():
@@ -147,7 +165,10 @@ def test_webhook_routes_postback_and_skips_duplicates(monkeypatch):
 
 def _press(user, msgs):
     """返信の中の最後の「開く」ボタンを押す。"""
-    action = msgs[-1]["contents"]["footer"]["contents"][-1]["action"]
+    contents = msgs[-1]["contents"]
+    if contents["type"] == "carousel":
+        contents = contents["contents"][-1]
+    action = replies.footer_buttons(contents["footer"])[-1]["action"]
     assert action["type"] == "postback"
     return replies.build_postback_reply(user, action["data"], BASE), action
 
@@ -161,15 +182,19 @@ def test_three_oracle_opens_one_card_at_a_time_without_repeats():
 
         m1, _ = _press("Uuser", intro)
         assert m1[0]["text"] == "✨ 1枚目「過去・背景」のカードは……"
-        assert m1[2]["contents"]["footer"]["contents"][-1]["action"]["label"] == "✨ 2枚目を開く"
+        assert len(m1) == 2  # 次の裏面を別に送らず、結果の中に「2枚目を開く」がある
+        assert replies.footer_buttons(m1[-1]["contents"]["footer"])[-1]["action"]["label"] == "✨ 2枚目を開く"
         m2, _ = _press("Uuser", m1)
         assert m2[0]["text"] == "✨ 2枚目「現在の状況」のカードは……"
         m3, _ = _press("Uuser", m2)
         assert m3[0]["text"] == "✨ 3枚目「未来へのヒント」のカードは……"
         assert m3[-1]["altText"] == "✦ 3枚からの総合メッセージ ✦"
-        labels = [b["action"]["label"] for b in m3[-1]["contents"]["footer"]["contents"]]
+        third, summary = m3[-1]["contents"]["contents"]  # 3枚目 → 横スライドで総合メッセージ
+        assert "hero" not in third and "hero" not in summary
+        buttons = replies.footer_buttons(summary["footer"])
+        labels = [b["action"]["label"] for b in buttons]
         assert labels == ["🔮 もう一度引く", "💜 メニューに戻る", "🎵 波動の音でひと休み"]
-        assert m3[-1]["contents"]["footer"]["contents"][0]["action"]["text"] == "スリーオラクル"
+        assert buttons[0]["action"]["text"] == "スリーオラクル"
 
         (s,) = sessions._sessions.values()
         assert len(set(s["cards"])) == 3
@@ -219,7 +244,7 @@ def test_theme_menus_use_card_back_and_keep_theme_message(kind, word, field):
     card = deck.get_card(s["cards"][0])
     texts = [c.get("text") for c in bubble["body"]["contents"]]
     assert card[field] in texts and card["message"] in texts
-    assert bubble["footer"]["contents"][0]["action"]["text"] == word
+    assert replies.footer_buttons(bubble["footer"])[0]["action"]["text"] == word
 
 
 def test_list_and_card_number_are_unchanged():
