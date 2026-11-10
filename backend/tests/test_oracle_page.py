@@ -111,3 +111,9 @@ def test_goddess_result_message_returns_that_card_in_chat():
 def test_goddess_result_ignores_other_text_and_bad_numbers():
     assert replies.goddess_result_reply("こんにちは", BASE) is None
     assert replies.goddess_result_reply("女神様が選んだカード No.99", BASE) is None
+
+
+def test_page_has_a_way_back_to_the_line_chat():
+    html = client.get("/oracle/").text
+    assert html.count('href="https://line.me/R/oaMessage/%40789rgdko/"') == 2  # 左上と、結果のあと
+    assert "トークに戻る" in html
