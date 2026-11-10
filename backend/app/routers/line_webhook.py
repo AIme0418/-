@@ -114,6 +114,13 @@ async def _fetch_display_name(user_id: str) -> str:
 
 
 async def _handle_text_message(reply_token: str, user_id: str, user_text: str) -> None:
+    # 女神様の演出ページで引いたカードを、トークでも受け取る（AIを使わないので無料）
+    goddess = oracle.goddess_result_reply(user_text, settings.public_base_url)
+    if goddess is not None:
+        goddess[-1]["quickReply"] = oracle.QUICK_REPLY
+        await _reply_messages(reply_token, goddess)
+        return
+
     # リッチメニューのオラクルの言葉は、AIより先に処理する（AIを使わないので無料・回数制限なし）
     command = oracle.detect_command(user_text)
     if command is not None:

@@ -2,6 +2,8 @@
 
 import html
 
+from urllib.parse import quote
+
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
@@ -105,7 +107,14 @@ def draw_one(request: Request) -> dict:
         "work": card["work"],
         "healing": card["healing"],
         "image": f"/static/cards/{image}" if image else None,
+        # 押すとLINEのトークが開き、この文が入力された状態になる。送るとBotが結果を返す
+        "line_url": line_result_url(card["id"]),
     }
+
+
+def line_result_url(card_id: int) -> str:
+    text = f"女神様が選んだカード No.{card_id:02d}"
+    return f"https://line.me/R/oaMessage/{quote(settings.line_basic_id)}/?{quote(text)}"
 
 
 def oracle_page_url(base_url: str = "") -> str | None:

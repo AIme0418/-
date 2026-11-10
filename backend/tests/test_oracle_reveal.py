@@ -275,3 +275,29 @@ def test_sound_page_is_served_with_lumiel_name():
     assert r.status_code == 200 and "ルミエル 波動の音" in r.text and "愛美" not in r.text
     for path in ("/sound/sw.js", "/sound/manifest.json", "/sound/icon.png"):
         assert client.get(path).status_code == 200
+
+
+def test_three_oracle_intro_explains_past_present_future():
+    intro = replies.build_reply("three", BASE, user_id="Uexplain")
+    assert "「過去・背景」「現在」「未来」の3枚" in intro[0]["text"]
+    sessions._sessions.clear()
+
+
+def test_three_oracle_reads_each_card_by_its_position():
+    card = deck.get_card(1)
+    past = replies.three_position_text(1, card)
+    assert "これまでのあなたが通ってきた道" in past and card["message"] in past
+    assert "今のあなたが向き合っている" in replies.three_position_text(2, card)
+    assert "これからの流れ" in replies.three_position_text(3, card)
+
+
+def test_three_summary_connects_past_to_future():
+    cards = [deck.get_card(i) for i in (1, 2, 3)]
+    text = replies.three_summary_text(cards)
+    assert "その経験があったからこそ" in text and "過去から今へ" in text
+
+
+def test_love_intro_mentions_other_relationships():
+    intro = replies.build_reply("love", BASE, user_id="Ulove")
+    assert "家族・友人・職場の人" in intro[0]["text"]
+    sessions._sessions.clear()

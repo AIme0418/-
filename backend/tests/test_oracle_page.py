@@ -89,3 +89,25 @@ def test_one_oracle_falls_back_to_chat_draw_without_https_url():
     intro = replies.build_reply("one", "", user_id="U1")
     actions = [b["action"]["type"] for b in intro[1]["contents"]["footer"]["contents"] if b.get("type") == "button"]
     assert actions == ["postback"]
+
+
+def test_draw_returns_link_to_send_result_to_line_chat():
+    c = client.post("/api/oracle/draw").json()
+    assert c["line_url"].startswith("https://line.me/R/oaMessage/%40789rgdko/?")
+    from urllib.parse import unquote
+    assert unquote(c["line_url"].split("?", 1)[1]) == f"女神様が選んだカード No.{c['id']:02d}"
+
+
+def test_goddess_result_message_returns_that_card_in_chat():
+    msgs = replies.goddess_result_reply("女神様が選んだカード No.07", BASE)
+    card = deck.get_card(7)
+    bubble = msgs[1]["contents"]
+    names = [c.get("text") for c in bubble["body"]["contents"][0]["contents"][1]["contents"]]
+    assert card["name"] in names
+    assert card["message"] in [c.get("text") for c in bubble["body"]["contents"]]
+    assert replies.footer_buttons(bubble["footer"])[0]["action"]["text"] == "ワンオラクル"
+
+
+def test_goddess_result_ignores_other_text_and_bad_numbers():
+    assert replies.goddess_result_reply("こんにちは", BASE) is None
+    assert replies.goddess_result_reply("女神様が選んだカード No.99", BASE) is None

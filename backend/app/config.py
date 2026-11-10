@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
 
     default_model_provider: str = "gemini"
+    # LINE公式アカウントのID（演出ページから結果をトークに送るリンクに使う）
+    line_basic_id: str = "@789rgdko"
 
     admin_api_token: str = "change-me-to-a-long-random-string"
 

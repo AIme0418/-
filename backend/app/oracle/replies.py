@@ -106,14 +106,20 @@ ONE_INTRO_TEXT = (
     "ゆっくり深呼吸して、今のあなたの心に意識を向けてみてください。🌙"
 )
 THREE_INTRO_TEXT = (
-    "✨ 天使と女神たちが、あなたのための3枚のカードを準備しています。\n\n"
+    "🔮 スリーオラクルは、「過去・背景」「現在」「未来」の3枚を順番に開いて、"
+    "これまでの流れから、これからのヒントを読み解く占い方です。\n\n"
+    "✨ 天使と女神たちが、あなたのための3枚のカードを準備しています。\n"
     "ゆっくり深呼吸して、今のあなたの心に意識を向けてみてください。🌙\n"
     "1枚ずつ、順番に開いていきましょう。"
 )
 THEME_INTRO_TEXT = (
     "{icon} {label}について、天使と女神たちがあなたへのメッセージを準備しています。\n\n"
     "ゆっくり深呼吸して、思い浮かぶ人や出来事に、そっと意識を向けてみてください。🌙"
+    "{note}"
 )
+THEME_NOTES = {
+    "love": "\n恋人や好きな人のことだけでなく、家族・友人・職場の人との関係について思い浮かべても大丈夫です。",
+}
 REVEAL_TEXT = "✨ あなたに届いた光のメッセージは……"
 EXPIRED_TEXT = (
     "🌙 このカードは時間がたって、そっと閉じてしまいました。\n"
@@ -133,7 +139,8 @@ REVEAL_KINDS = set(AGAIN_WORD)
 
 
 GODDESS_INTRO_TEXT = (
-    "✨ 天使と女神たちが、あなたへのメッセージを準備しています。\n\n"
+    "🔮 ワンオラクルは、今のあなたに必要なメッセージを1枚のカードで受け取る占い方です。\n\n"
+    "✨ 天使と女神たちが、あなたへのメッセージを準備しています。\n"
     "ゆっくり深呼吸して、今のあなたの心に意識を向けてみてください。🌙\n"
     "下のボタンを押すと、女神様があなたのカードを選んでくれます。"
 )
@@ -144,6 +151,25 @@ def _intro(kind: str, user_id: str, base_url: str) -> list[dict]:
         # ワンオラクルは女神様の演出ページで引く（チャットで開く方法と2つあると迷うため1つに）
         return [{"type": "text", "text": GODDESS_INTRO_TEXT}, _goddess_message(base_url)]
     return _back_intro(kind, user_id, base_url)
+
+
+GODDESS_RESULT_RE = re.compile(r"女神様が選んだカード\s*No\.?\s*(\d{1,2})")
+
+
+def goddess_result_reply(text: str, base_url: str) -> list[dict] | None:
+    """演出ページの「LINEで結果を受け取る」から送られたメッセージに、カードの結果を返す。"""
+    m = GODDESS_RESULT_RE.search(text or "")
+    if not m:
+        return None
+    card = deck.get_card(int(m.group(1)))
+    if not card:
+        return None
+    bubble = _card_bubble(card, base_url, label="ワンオラクル", main_text=card["message"])
+    bubble["footer"] = _again_buttons("one", base_url)
+    return [
+        {"type": "text", "text": "✨ 女神様があなたのために選んだカードは……"},
+        _flex(f"ワンオラクル｜{card['name']}「{card['keyword']}」", bubble),
+    ]
 
 
 def _goddess_message(base_url: str) -> dict:
@@ -185,7 +211,7 @@ def _back_intro(kind: str, user_id: str, base_url: str) -> list[dict]:
     if kind == "three":
         text = THREE_INTRO_TEXT
     elif kind in THEMES:
-        text = THEME_INTRO_TEXT.format(**THEMES[kind])
+        text = THEME_INTRO_TEXT.format(note=THEME_NOTES.get(kind, ""), **THEMES[kind])
     else:
         text = ONE_INTRO_TEXT
     data = sessions.create(user_id, kind)
@@ -377,7 +403,7 @@ def _three_reveal(card_ids: list[int], sid: str, base_url: str) -> list[dict]:
     step = len(card_ids)
     card = deck.get_card(card_ids[-1])
     pos = THREE_POSITIONS[step - 1]
-    bubble = _card_bubble(card, base_url, label=f"{THREE_STEP_NAMES[step - 1]}：{pos}", main_text=card["message"])
+    bubble = _card_bubble(card, base_url, label=f"{THREE_STEP_NAMES[step - 1]}：{pos}", main_text=three_position_text(step, card))
     text = {"type": "text", "text": f"✨ {THREE_STEP_NAMES[step - 1]}「{pos}」のカードは……"}
     if step < 3:
         data = sessions.next_step_data(sid, "three", step + 1, card_ids)
@@ -504,12 +530,32 @@ def _three_oracle(cards: list[dict], base_url: str) -> dict:
     return {"type": "flex", "altText": alt[:400], "contents": {"type": "carousel", "contents": bubbles}}
 
 
+THREE_POSITION_LEADS = (
+    "これまでのあなたが通ってきた道を表すカードです。\n"
+    "思うようにいかない時期や、がまんを重ねてきた時期もあったかもしれません。"
+    "その中で、あなたの中には「{keyword}」のテーマが育ってきました。",
+    "今のあなたが向き合っているテーマを表すカードです。\n"
+    "今は「{keyword}」が大切な鍵になっています。",
+    "これからの流れと、未来へのヒントを表すカードです。\n"
+    "この先、「{keyword}」の流れが少しずつ近づいてきています。",
+)
+
+
+def three_position_text(step: int, card: dict) -> str:
+    """スリーオラクルのstep枚目（1〜3）の読み方。位置の意味を先に添えてから、カードのメッセージを伝える。"""
+    lead = THREE_POSITION_LEADS[step - 1].format(keyword=card["keyword"])
+    return f"{lead}\n\n― カードからのメッセージ ―\n{card['message']}"
+
+
 def three_summary_text(cards: list[dict]) -> str:
     past, present, future = cards
     return (
-        f"過去・背景にある「{past['keyword']}」は、今のあなたをつくってきた大切な土台です。\n\n"
-        f"現在の状況のテーマは「{present['keyword']}」。{present['name']}が、今のあなたにそっと寄り添っています。\n\n"
-        f"そして未来へのヒントは「{future['keyword']}」。その光が、これからの道を照らしてくれます。\n\n"
+        f"これまでのあなたは、「{past['keyword']}」と向き合いながら歩んできました。"
+        "つらいと感じた日々も、今のあなたをつくる大切な土台になっています。\n\n"
+        f"その経験があったからこそ、今は「{present['keyword']}」がテーマになっています。"
+        f"{present['name']}が、今のあなたにそっと寄り添っています。\n\n"
+        f"そして、その先に待っているのは「{future['keyword']}」の流れです。"
+        "過去から今へとつながってきた歩みが、これからの道を照らしてくれます。\n\n"
         + deck.pick_closing(THREE_CLOSINGS)
     )
 

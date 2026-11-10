@@ -59,6 +59,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:poi
 .btn{appearance:none;border:0;width:100%;min-height:56px;border-radius:999px;font:inherit;font-size:18px;font-weight:700;letter-spacing:.1em;cursor:pointer;
   color:var(--btn-ink);background:linear-gradient(180deg,var(--cream),var(--gold));box-shadow:0 0 28px rgba(243,217,164,.35)}
 .btn:disabled{opacity:.45;cursor:default}
+.btn-line{display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:16px;letter-spacing:.04em;background:linear-gradient(180deg,#f6e9ff,var(--lav));color:var(--btn-ink)}
 .btn:focus-visible{outline:3px solid var(--lav);outline-offset:3px}
 .note{margin:0;font-size:12px;line-height:1.7;color:var(--muted);text-align:center}
 @media (prefers-reduced-motion:reduce){.card{transition:opacity .3s}}
@@ -95,13 +96,14 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:poi
     </details>
   </section>
 
+  <a class="btn btn-line" id="lineBtn" hidden href="#">💌 LINEのトークで結果を受け取る</a>
   <button class="btn" id="drawBtn" type="button">カードを引く</button>
-  <p class="note" id="note">終わったら、左上の「×」でLINEのトークに戻れます。</p>
+  <p class="note" id="note">結果は「LINEのトークで結果を受け取る」で、トークにも残せます。</p>
 </main>
 
 <script>
 const cv=document.getElementById("cv"),ctx=cv.getContext("2d");
-const btn=document.getElementById("drawBtn"),wrap=document.getElementById("cardWrap"),card=document.getElementById("card"),msg=document.getElementById("msg");
+const lineBtn=document.getElementById("lineBtn"),btn=document.getElementById("drawBtn"),wrap=document.getElementById("cardWrap"),card=document.getElementById("card"),msg=document.getElementById("msg");
 const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
 let W=0,H=0,S=0,CX=0,CY=0;
 function resize(){const r=cv.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);cv.width=Math.round(r.width*d);cv.height=Math.round(r.height*d);ctx.setTransform(d,0,0,d,0,0);W=r.width;H=r.height;S=Math.min(W*1.05,H*.95);CX=W/2;CY=H*.5}
@@ -202,14 +204,14 @@ function showCard(){
   msg.querySelector("details").open=false;
   wrap.hidden=false;card.className="card";
   requestAnimationFrame(()=>requestAnimationFrame(()=>{card.classList.add("in");
-    setTimeout(()=>{card.classList.add("flip");setTimeout(()=>{msg.hidden=false;btn.disabled=false;btn.textContent="もう一度引く";
+    setTimeout(()=>{card.classList.add("flip");setTimeout(()=>{msg.hidden=false;btn.disabled=false;btn.textContent="もう一度引く";if(c.line_url){lineBtn.href=c.line_url;lineBtn.hidden=false}
       msg.scrollIntoView({behavior:reduce?"auto":"smooth",block:"nearest"})},reduce?100:900)},reduce?50:650)}));
 }
-function resetStage(){wrap.hidden=true;card.className="card";msg.hidden=true;chosen=null;flash=0;
+function resetStage(){lineBtn.hidden=true;wrap.hidden=true;card.className="card";msg.hidden=true;chosen=null;flash=0;
   orbs.forEach(o=>o.trail=[]);state="idle";t=0;btn.disabled=false;btn.textContent="カードを引く"}
 function draw(){
   if(state==="idle"){btn.disabled=true;btn.textContent="カードを選んでいます…";fetchCard();
-    document.getElementById("note").textContent="終わったら、左上の「×」でLINEのトークに戻れます。";
+    document.getElementById("note").textContent="結果は「LINEのトークで結果を受け取る」で、トークにも残せます。";
     document.getElementById("note").classList.remove("err");
     if(reduce){state="choose";t=1.1;from=null}else{state="spin";t=0}}
   else if(state==="reveal")resetStage();
